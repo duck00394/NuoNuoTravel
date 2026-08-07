@@ -39,6 +39,9 @@
     }
   </script>
   <style>
+    /* 加入 v-cloak 避免 Vue 載入前畫面閃爍或跑版 */
+    [v-cloak] { display: none !important; }
+
     html, body { 
       background-color: #798C9F; 
       font-family: 'Noto Sans TC', sans-serif; 
@@ -79,7 +82,7 @@
 </head>
 <body class="flex justify-center w-full">
 
-  <div id="app" class="w-full max-w-md h-full bg-app-bg flex flex-col relative shadow-2xl overflow-hidden sm:border-x border-black/5">
+  <div id="app" v-cloak class="w-full max-w-md h-full bg-app-bg flex flex-col relative shadow-2xl overflow-hidden sm:border-x border-black/5">
     
     <!-- 全域貓爪裝飾背景 -->
     <div class="absolute inset-0 pointer-events-none overflow-hidden z-0 flex flex-col justify-around py-32 px-8 opacity-[0.08] text-white">
@@ -1012,7 +1015,7 @@
              <h3 class="font-serif font-bold text-2xl text-app-textMain tracking-widest drop-shadow-sm">安全解鎖</h3>
              <p class="text-xs text-white mt-2 font-medium tracking-wider drop-shadow-sm">修改憑證需輸入密碼解鎖<br>(預設密碼：0000)</p>
           </div>
-          <input v-model="pinModal.pin" type="password" maxlength="4" placeholder="••••" class="w-full bg-white border border-white/60 rounded-xl p-4 text-center text-3xl tracking-[0.5em] font-black text-app-primaryDark outline-none focus:border-app-primary shadow-inner mb-6">
+          <input v-model="pinModal.pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" class="w-full bg-white border border-white/60 rounded-xl p-4 text-center text-3xl tracking-[0.5em] font-black text-app-primaryDark outline-none focus:border-app-primary shadow-inner mb-6">
           <div class="flex gap-3">
              <button @click="pinModal.show = false" class="flex-1 bg-white/50 text-app-textMain py-3.5 rounded-xl font-bold text-sm btn-press border border-white/60 shadow-sm">取消</button>
              <button @click="confirmPin" class="flex-1 bg-app-primaryDark text-white py-3.5 rounded-xl font-bold text-sm shadow-md tracking-widest btn-press border border-app-primaryDark">確認解鎖</button>
@@ -1084,171 +1087,1020 @@
             if (!/^\d{4}$/.test(code)) return alert('請輸入 4 碼純數字！');
             
             try {
-                //因為您沒有附上原本的程式碼，根據您提供的圖片 `image_564e6a.png` 來看，這類「一開始進入畫面跑版或異常」的問題，通常是因為**背景遮罩層 (Overlay) 沒有正確滿版覆蓋**，或是**彈出視窗 (Modal) 的 Flexbox/Grid 居中對齊設定跑掉**所導致。
+                // 查詢 Firestore 的 "users" 集合，看看這個代碼是否有人用過
+                const userRef = doc(db, "users", code);
+                const docSnap = await getDoc(userRef);
+                
+                if (docSnap.exists()) {
+                    // 【舊使用者】代入歷史資料
+                    const userData = docSnap.data();
+                    myProfile.id = code;
+                    myProfile.accountId = code;
+                    myProfile.name = userData.name || '我';
+                    myProfile.avatar = userData.avatar || availableAvatars[0];
+                    alert(`歡迎回來，${myProfile.name}！`);
+                } else {
+                    // 【新使用者】第一次使用這個代碼，建立新檔案
+                    const newName = prompt('這是一個全新的代碼！\n請輸入您在行程中想顯示的名稱：', '我');
+                    if (!newName) return; // 取消則中斷
+                    
+                    myProfile.id = code;
+                    myProfile.accountId = code;
+                    myProfile.name = newName.trim();
+                    
+                    // 將新使用者資料存入資料庫
+                    await setDoc(userRef, {
+                        id: code,
+                        name: myProfile.name,
+                        avatar: myProfile.avatar
+                    });
+                }
+                
+                // 儲存到本機，下次打開 APP 就不用重登
+                safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile));
+                
+                // 開始監聽這個 4 碼帳號的所有行程
+                setupTripsListener(code);
+                
+                // 檢查是否是點擊朋友的邀請連結進來的
+                if (hasCheckedUrl.value && window.location.search.includes('tripId=')) {
+                    checkUrlForInvite();
+                } else {
+                    appPage.value = 'home';
+                }
+                
+            } catch (e) {
+                console.error("登入錯誤:", e);
+                alert('連線失敗，請檢查網路狀態！');
+            }
+        };
 
-我為您重新編寫了一份乾淨、結構正確且確保絕對置中的 HTML/CSS 程式碼。您可以直接套用或參考其中的排版邏輯來修正您的專案。
+        // 背景自動取得 Firebase 權限 (完全隱藏在背景，使用者不需註冊)
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // 如果本機有存過正確的 4 碼帳號，直接載入行程並跳轉首頁
+                if (myProfile.id && /^\d{4}$/.test(myProfile.id)) {
+                    setupTripsListener(myProfile.id);
+                    if (!hasCheckedUrl.value) {
+                        checkUrlForInvite();
+                    } else if (appPage.value === 'login') {
+                        appPage.value = 'home';
+                    }
+                } else {
+                    // 本機沒紀錄，停在登入畫面等待輸入 4 碼
+                    appPage.value = 'login';
+                }
+            } else {
+                // 若完全沒有 Firebase 連線，則自動觸發匿名登入以取得讀寫權限
+                try {
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("自動連線失敗:", error);
+                }
+            }
+            isAuthReady.value = true;
+        });
 
-### 修正後的 UI 程式碼 (HTML + CSS)
+        // 登出只需清除本機紀錄，並退回輸入 4 碼的畫面
+        const logout = () => {
+            if(confirm('確定要登出嗎？下次只要輸入一樣的 4 碼就能找回您的行程喔！')) {
+                myProfile.id = '';
+                safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile));
+                if (unsubTrips) { unsubTrips(); unsubTrips = null; }
+                trips.value = [];
+                appPage.value = 'login';
+                showProfileModal.value = false;
+            }
+        };
 
-此程式碼會確保畫面具備滿版的半透明黑色遮罩，並將解鎖視窗完美置中，且完整還原圖片中的視覺設計（包含圓角、陰影、字體顏色與外框）。
+        const hasCheckedUrl = ref(false);
 
-```html
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>安全解鎖</title>
-  <style>
-    /* 確保 body 填滿畫面，避免彈窗位置跑掉 */
-    body, html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-      background-color: #1A222E; /* 模擬底層您的深色背景 */
-    }
+        const showProfileModal = ref(false); 
+        const editingProfile = reactive({ accountId: '', name: '', avatar: '' });
+        
+        const invitationTrip = ref(null);
+        const joinProfile = reactive({ accountId: '', name: '', avatar: availableAvatars[0] }); 
+        
+        const showAvatarPicker = ref(false);
+        const avatarTarget = ref(null);
+        const avatarProp = ref('');
+        const isMemberUpdate = ref(false);
 
-    /* 修正重點 1：滿版半透明遮罩，確保彈窗必定置中且遮蔽底層 */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.4); 
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-    }
+        const openAvatarPicker = (target, prop, isMember = false) => {
+            avatarTarget.value = target;
+            avatarProp.value = prop;
+            isMemberUpdate.value = isMember;
+            showAvatarPicker.value = true;
+        };
 
-    /* 修正重點 2：彈窗主體樣式與毛玻璃/邊框質感 */
-    .modal-content {
-      background-color: #8897A6; /* 灰藍色背景 */
-      border: 1.5px solid rgba(255, 255, 255, 0.6); /* 白色半透明外框 */
-      border-radius: 16px;
-      width: 320px;
-      padding: 32px 24px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-      text-align: center;
-      box-sizing: border-box;
-    }
+        const selectAvatar = (url) => {
+            if (avatarTarget.value && avatarProp.value) {
+                avatarTarget.value[avatarProp.value] = url;
+                if (isMemberUpdate.value) {
+                    const m = avatarTarget.value;
+                    if (m.accountId === myProfile.accountId || m.id === myProfile.id) {
+                        myProfile.avatar = m.avatar;
+                        safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile));
+                    }
+                    syncMyProfileToAllTrips();
+                }
+            }
+            showAvatarPicker.value = false;
+        };
 
-    /* 鎖頭圖示背景 */
-    .icon-wrapper {
-      width: 56px;
-      height: 56px;
-      background-color: #FFFFFF;
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin: 0 auto 16px auto;
-    }
+        const tabs = [ 
+          { id: 'schedule', name: '時間軸', icon: 'fas fa-calendar-alt' }, 
+          { id: 'bookings', name: '憑證', icon: 'fas fa-ticket-alt' }, 
+          { id: 'expense', name: '記帳', icon: 'fas fa-receipt' }, 
+          { id: 'exchange', name: '換匯', icon: 'fas fa-calculator' }, 
+          { id: 'plan', name: '準備', icon: 'fas fa-clipboard-list' } 
+        ];
 
-    /* 文字排版 */
-    .modal-content h2 {
-      color: #121A26;
-      font-size: 20px;
-      font-weight: bold;
-      margin: 0 0 8px 0;
-      letter-spacing: 1px;
-    }
+        const defaultPackingData = [
+          { text: "護照", group: "重要證件資料" }, { text: "身分證", group: "重要證件資料" }, { text: "國家電子簽證/紙本簽證", group: "重要證件資料" }, { text: "登機證/機票證明", group: "重要證件資料" }, { text: "保險卡", group: "重要證件資料" }, { text: "信用卡", group: "重要證件資料" }, { text: "國家外幣", group: "重要證件資料" }, { text: "台灣/國際駕照/翻譯本", group: "重要證件資料" }, { text: "交通卡/遊樂園票券", group: "重要證件資料" },
+          { text: "手機/耳機/藍牙耳機", group: "3C產品" }, { text: "SIM卡/eSIM", group: "3C產品" }, { text: "充電器(電腦/手機/手錶)", group: "3C產品" }, { text: "相機", group: "3C產品" }, { text: "萬國插頭", group: "3C產品" }, { text: "記憶卡/讀卡器/備用電池", group: "3C產品" }, { text: "自拍棒/手機支架", group: "3C產品" }, { text: "筆電/平板電腦", group: "3C產品" }, { text: "行動電源", group: "3C產品" },
+          { text: "上衣", group: "服裝" }, { text: "下身", group: "服裝" }, { text: "內衣褲", group: "服裝" }, { text: "睡衣", group: "服裝" }, { text: "發熱衣/褲", group: "服裝" }, { text: "襪子", group: "服裝" }, { text: "鞋子", group: "服裝" }, { text: "外套", group: "服裝" }, { text: "帽子", group: "服裝" }, { text: "飾品盒", group: "服裝" }, { text: "毛巾", group: "服裝" }, { text: "圍巾", group: "服裝" }, { text: "口罩", group: "服裝" }, { text: "太陽眼鏡", group: "服裝" }, { text: "拖鞋", group: "服裝" }, { text: "手套", group: "服裝" }, { text: "隨身背包/購物袋", group: "服裝" },
+          { text: "沐浴/洗髮/護髮/洗面乳", group: "生活用品" }, { text: "牙刷/牙膏/牙套/牙線", group: "生活用品" }, { text: "常備藥品/急救包", group: "生活用品" }, { text: "衛生紙/濕紙巾/酒精", group: "生活用品" }, { text: "保養品(化妝水/乳液/精華)", group: "生活用品" }, { text: "隱形眼鏡/眼鏡/保養液", group: "生活用品" }, { text: "折疊雨傘", group: "生活用品" }, { text: "生理用品", group: "生活用品" }, { text: "吹風機/離子夾/電棒捲", group: "生活用品" }, { text: "鏡子/梳子", group: "生活用品" }, { text: "刮鬍刀", group: "生活用品" }, { text: "頭髮造型品", group: "生活用品" }, { text: "指甲剪/小剪刀/水果刀", group: "生活用品" }, { text: "護手霜/香水", group: "生活用品" }, { text: "暖暖包", group: "生活用品" }, { text: "個人藥品", group: "生活用品" },
+          { text: "防曬/妝前乳", group: "化妝品" }, { text: "底妝(粉底/遮瑕/蜜粉)", group: "化妝品" }, { text: "眼妝(眉筆/眼影/眼線/睫毛膏)", group: "化妝品" }, { text: "修容/腮紅/打亮", group: "化妝品" }, { text: "唇膏/唇釉", group: "化妝品" }, { text: "化妝工具(美妝蛋/刷具)", group: "化妝品" }, { text: "卸妝(眼唇/卸妝水/棉)", group: "化妝品" }
+        ];
+        const generateDefaultPacking = () => defaultPackingData.map(item => ({ id: 'p_' + Math.random().toString(36).substr(2, 9), type: 'packing', text: `[${item.group}] ${item.text}`, checkedBy: [], isImportant: false }));
 
-    .modal-content p {
-      color: #FFFFFF;
-      font-size: 13px;
-      margin: 0 0 24px 0;
-      line-height: 1.5;
-    }
+        const defaultTrips = [
+          {
+            id: '5566', title: '台南開心吃開心玩', date: '2026.09.06 - 09.08', type: 'shared', countdown: 33, weather: 32,
+            startDate: '2026-09-06', endDate: '2026-09-08', country: 'TW', defaultCurrency: 'TWD',
+            hostId: myProfile.id,
+            memberIds: [myProfile.id, 2, 3],
+            members: [ { id: myProfile.id, accountId: myProfile.accountId, name: myProfile.name, avatar: myProfile.avatar, role: '主揪' }, { id: 2, accountId: 'user_2', name: '小美', avatar: availableAvatars[1], role: '同行' }, { id: 3, accountId: 'user_3', name: '老王', avatar: availableAvatars[2], role: '同行' } ],
+            days: [ 
+              { date: '09/06', timeline: [ { id: 't1_1', time: '14:30', title: '抵達台南高鐵站', category: '交通', location: '高鐵台南站', isFavorite: false, inMapRoute: true, note: '' }, { id: 't1_2', time: '15:00', title: '搭接駁前往亞太棒球場', category: '交通', location: '亞太國際棒球訓練中心', isFavorite: false, inMapRoute: true, note: '' }, { id: 't1_3', time: '16:00', title: '棒球 巷仔內的西拉雅', category: '棒球', location: '亞太國際棒球訓練中心', isFavorite: true, inMapRoute: true, note: '預計到19:00', baseballInfo: { stadium: '亞太', home: '統一獅', away: '其他' } }, { id: 't1_4', time: '20:00', title: 'Check-in', category: '住宿', location: '合拍行旅-民生館', isFavorite: false, inMapRoute: true, note: '臺南市中西區民生路二段76號6樓' } ] },
+              { date: '09/07', timeline: [ { id: 't2_1', time: '10:30', title: '驚喜的一天開始', category: '景點', location: '台南市區', isFavorite: false, inMapRoute: false, note: '' }, { id: 't2_2', time: '14:00', title: '懷舊小棧豆腐冰', category: '美食', location: '懷舊小棧豆腐冰', isFavorite: true, inMapRoute: true, note: '營業時間: 10:30-22:00，芝麻醬吃爆！' }, { id: 't2_3', time: '18:00', title: 'LOLA 蘿拉冷飲店', category: '美食', location: 'LOLA蘿拉冷飲店', isFavorite: true, inMapRoute: true, note: '營業時間: 18:00-21:00，必點肉桂蜜蘋薄餅、調酒' } ] },
+              { date: '09/08', timeline: [ { id: 't3_1', time: '11:00', title: '退房', category: '住宿', location: '合拍行旅-民生館', isFavorite: false, inMapRoute: false, note: '' }, { id: 't3_2', time: '13:00', title: '前往奇美博物館', category: '交通', location: '奇美博物館', isFavorite: false, inMapRoute: true, note: '' }, { id: 't3_3', time: '13:45', title: '木乃伊展', category: '景點', location: '奇美博物館', isFavorite: true, inMapRoute: false, note: '' }, { id: 't3_4', time: '16:00', title: 'VR展', category: '景點', location: '奇美博物館', isFavorite: false, inMapRoute: false, note: '' }, { id: 't3_5', time: '18:00', title: '回程', category: '交通', location: '高鐵台南站', isFavorite: false, inMapRoute: true, note: '準備搭車回家' } ] }
+            ],
+            expenses: [ { id: 'e1', desc: '高鐵票', currency: 'TWD', category: '交通', paymentMethod: 'credit', payers: { [myProfile.id]: 4500 }, consumers: [myProfile.id, 2, 3] }, { id: 'e2', desc: '球票', currency: 'TWD', category: '門票', paymentMethod: 'cash', payers: { [myProfile.id]: 1000, 2: 1000, 3: 1000 }, consumers: [myProfile.id, 2, 3] } ],
+            journals: [], 
+            bookings: [ { id: 'b1', type: 'hotel', title: '合拍行旅-民生館', address: '臺南市中西區民生路二段76號6樓', checkIn: '22:00前', latestCheckIn: '22:00', checkOut: '11:00', mapLink: 'https://maps.google.com/?q=臺南市中西區民生路二段76號6樓', amount: '', info: '一樓外觀有富驛標誌', image: null } ], 
+            payments: [], plans: [ { id: 'p_todo1', type: 'todo', text: '買奇美特展門票', checkedBy: [] }, ...generateDefaultPacking() ]
+          }
+        ];
 
-    /* 密碼點點輸入區 */
-    .pin-display {
-      background-color: #FFFFFF;
-      border-radius: 8px;
-      height: 56px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 24px;
-      margin-bottom: 24px;
-    }
+        const trips = ref([]);
+        let isRemoteUpdate = false; 
+        let unsubTrips = null;
 
-    .dot {
-      width: 8px;
-      height: 8px;
-      background-color: #9AA6B4;
-      border-radius: 50%;
-    }
+        const setupTripsListener = (uid) => {
+            if (unsubTrips) unsubTrips();
+            const q = query(collection(db, "trips"), where("memberIds", "array-contains", uid));
+            unsubTrips = onSnapshot(q, (snapshot) => {
+                isRemoteUpdate = true;
+                const loadedTrips = [];
+                snapshot.forEach((docSnap) => loadedTrips.push(docSnap.data()));
+                trips.value = loadedTrips;
+                setTimeout(() => { isRemoteUpdate = false; }, 100);
+            });
+        };
 
-    /* 按鈕群組 */
-    .button-group {
-      display: flex;
-      gap: 12px;
-    }
+        const filteredTrips = computed(() => trips.value.filter(t => t.type === homeTab.value));
+        const activeTripId = ref(null);
+        const currentTrip = computed(() => trips.value.find(t => t.id === activeTripId.value));
+        
+        watch(currentTrip, (newVal) => {
+            if (newVal && !isRemoteUpdate) {
+                setDoc(doc(db, "trips", newVal.id), newVal).catch(err => console.error("行程同步失敗", err));
+            }
+        }, { deep: true });
 
-    .btn {
-      flex: 1;
-      padding: 12px 0;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      border: none;
-      transition: opacity 0.2s ease;
-    }
+        const currentTime = ref(''); const currentDate = ref(''); const currentWeekday = ref('');
+        const updateTime = () => { const now = new Date(); currentTime.value = now.toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute:'2-digit'}); currentDate.value = `${now.getFullYear()}.${(now.getMonth()+1).toString().padStart(2,'0')}.${now.getDate().toString().padStart(2,'0')}`; currentWeekday.value = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()]; };
+        setInterval(updateTime, 1000); updateTime();
+        
+        const isFetchingRates = ref(false);
+        const rates = reactive({ TWD: 1, JPY: 0.21, KRW: 0.023, USD: 32.5 }); 
+        const fetchRates = async () => {
+          isFetchingRates.value = true;
+          try {
+            const res = await fetch('https://api.exchangerate-api.com/v4/latest/TWD');
+            if (!res.ok) throw new Error('API Error');
+            const data = await res.json();
+            if (data && data.rates) {
+              if (data.rates.JPY) rates.JPY = 1 / data.rates.JPY;
+              if (data.rates.KRW) rates.KRW = 1 / data.rates.KRW;
+              if (data.rates.USD) rates.USD = 1 / data.rates.USD;
+            }
+          } catch (error) { console.warn('匯率更新失敗，自動使用安全預設值'); }
+          isFetchingRates.value = false;
+        };
+        
+        const exchangeFrom = ref('JPY');
+        const exchangeTo = ref('TWD');
+        const calcInput = ref('');
+        
+        const calcHistory = ref(safeGetLocal('nuonuo_calc_history_v4', []));
+        const showCalcHistoryModal = ref(false);
+        watch(calcHistory, (val) => safeSetLocal('nuonuo_calc_history_v4', JSON.stringify(val)), { deep: true });
 
-    .btn:hover {
-      opacity: 0.85;
-    }
+        const shouldResetCalc = ref(false);
+        const isCustomRate = ref(false);
+        const manualRate = ref(1);
 
-    .btn-cancel {
-      background-color: #C1CCD6;
-      color: #121A26;
-      border: 1px solid rgba(255, 255, 255, 0.5);
-    }
+        watch([exchangeFrom, exchangeTo, rates, isCustomRate], () => {
+            if (!isCustomRate.value) {
+                const rFrom = exchangeFrom.value === 'TWD' ? 1 : (rates[exchangeFrom.value] || 1);
+                const rTo = exchangeTo.value === 'TWD' ? 1 : (rates[exchangeTo.value] || 1);
+                const actualRate = (exchangeTo.value === 'TWD' ? rFrom : (rFrom / rTo));
+                manualRate.value = parseFloat(actualRate.toFixed(4));
+            }
+        }, { immediate: true });
 
-    .btn-confirm {
-      background-color: #1F2D3D;
-      color: #FFFFFF;
-    }
-  </style>
-</head>
-<body>
+        const onCalcFocus = () => { calcInput.value = ''; shouldResetCalc.value = false; };
 
-  <!-- 滿版遮罩 -->
-  <div class="modal-overlay">
-    
-    <!-- 解鎖視窗 -->
-    <div class="modal-content">
-      
-      <!-- 鎖頭 Icon (SVG) -->
-      <div class="icon-wrapper">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
-          <path d="M17 10H19C20.1046 10 21 10.8954 21 12V20C21 21.1046 20.1046 22 19 22H5C3.89543 22 3 21.1046 3 20V12C3 10.8954 3.89543 10 5 10H7V7C7 4.23858 9.23858 2 12 2C14.7614 2 17 4.23858 17 7V10ZM12 18C13.1046 18 14 17.1046 14 16C14 14.8954 13.1046 14 12 14C10.8954 14 10 14.8954 10 16C10 17.1046 10.8954 18 12 18ZM9 10H15V7C15 5.34315 13.6569 4 12 4C10.3431 4 9 5.34315 9 7V10Z" fill="#121A26"/>
-        </svg>
-      </div>
+        const handleCalc = (val) => {
+            const ops = ['+', '-', '*', '/'];
+            let currentStr = String(calcInput.value || '0');
 
-      <h2>安全解鎖</h2>
-      <p>修改憑證需輸入密碼解鎖<br>(預設密碼：0000)</p>
+            if (val === 'C') { calcInput.value = '0'; shouldResetCalc.value = false; }
+            else if (val === 'DEL') { calcInput.value = currentStr.slice(0, -1) || '0'; shouldResetCalc.value = false; }
+            else if (val === '=') {
+                try {
+                    let expr = currentStr.replace(/[^0-9+\-*/.]/g, ''); 
+                    if (!expr) return;
+                    const result = new Function('return ' + expr)();
+                    const resultStr = String(Math.round(result * 10000) / 10000);
+                    calcHistory.value.push({ expr, result: resultStr });
+                    if (calcHistory.value.length > 15) calcHistory.value = calcHistory.value.slice(-15);
+                    calcInput.value = resultStr;
+                    shouldResetCalc.value = true;
+                } catch(e) { calcInput.value = 'Error'; setTimeout(() => calcInput.value = '0', 1000); shouldResetCalc.value = true; }
+            }
+            else if (ops.includes(val)) {
+                shouldResetCalc.value = false;
+                const lastChar = currentStr.slice(-1);
+                if (ops.includes(lastChar)) calcInput.value = currentStr.slice(0, -1) + val;
+                else calcInput.value = currentStr + val;
+            }
+            else if (val === '.') {
+                if (shouldResetCalc.value) { calcInput.value = '0.'; shouldResetCalc.value = false; } 
+                else if (currentStr.slice(-1) !== '.') calcInput.value = currentStr + '.';
+            }
+            else {
+                if (shouldResetCalc.value) { calcInput.value = val; shouldResetCalc.value = false; } 
+                else {
+                    if (currentStr === '0' || currentStr === 'Error' || calcInput.value === '') calcInput.value = val;
+                    else calcInput.value = currentStr + val;
+                }
+            }
+            if(String(calcInput.value).length > 20) calcInput.value = String(calcInput.value).slice(0, 20);
+        };
+        
+        const exchangeAmount = computed(() => { try { let expr = String(calcInput.value || '0').replace(/[^0-9+\-*/.]/g, ''); return parseFloat(new Function('return ' + (expr || '0'))()) || 0; } catch { return 0; } });
+        const swapExchange = () => { const temp = exchangeFrom.value; exchangeFrom.value = exchangeTo.value; exchangeTo.value = temp; };
+        const standaloneConvertedAmount = computed(() => { if (!exchangeAmount.value) return 0; return exchangeAmount.value * manualRate.value; });
 
-      <!-- 密碼輸入狀態 -->
-      <div class="pin-display">
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
-      </div>
+        const addCalcToExpense = () => {
+            const amt = exchangeAmount.value;
+            if (amt <= 0) return alert('請先輸入有效金額');
+            openExpenseModal(null);
+            newExpense.currency = exchangeFrom.value;
+            newExpense.singleAmount = amt;
+        };
 
-      <!-- 操作按鈕 -->
-      <div class="button-group">
-        <button class="btn btn-cancel">取消</button>
-        <button class="btn btn-confirm">確認解鎖</button>
-      </div>
-      
-    </div>
-  </div>
+        const getValidLink = (url) => { if (!url) return '#'; return /^https?:\/\//i.test(url) ? url : 'https://' + url; };
 
+        const compressImage = (file, maxWidth, maxHeight, quality, callback) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width; let height = img.height;
+                    if (width > height) { if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } } 
+                    else { if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; } }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                    callback(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        // ================= 專屬解鎖密碼邏輯 =================
+        const pinModal = reactive({ show: false, pin: '', action: null });
+        const requirePin = (callback) => {
+            pinModal.action = callback;
+            pinModal.pin = '';
+            pinModal.show = true;
+        };
+        const confirmPin = () => {
+            if (pinModal.pin === '0000') {
+                pinModal.show = false;
+                if (pinModal.action) pinModal.action();
+            } else {
+                alert('密碼錯誤，無法解鎖！');
+                pinModal.pin = '';
+            }
+        };
+
+        const showHomeFabMenu = ref(false);
+        const showJoinModal = ref(false);
+        const joinCode = ref('');
+
+        const openJoinModal = () => { 
+            joinCode.value = ''; 
+            joinProfile.accountId = myProfile.accountId;
+            joinProfile.name = myProfile.name;
+            joinProfile.avatar = myProfile.avatar;
+            showJoinModal.value = true; 
+        };
+        
+        const processJoinCode = async () => {
+           if(!joinCode.value) return alert('請輸入代碼或連結');
+           let id = joinCode.value;
+           if(id.includes('tripId=')) {
+               try { const url = new URL(id.startsWith('http') ? id : 'http://localhost/' + id); id = url.searchParams.get('tripId') || id; } 
+               catch(e) { const match = id.match(/tripId=([^&]+)/); if (match) id = match[1]; }
+           }
+           
+           const docSnap = await getDoc(doc(db, "trips", id));
+           if(docSnap.exists()) {
+               const trip = docSnap.data();
+               const isMember = trip.memberIds?.includes(myProfile.id);
+               if (isMember) {
+                   alert('您已經在此行程中囉！');
+                   goToTrip(trip.id);
+                   showJoinModal.value = false;
+                   return;
+               }
+               joinProfile.accountId = myProfile.accountId;
+               joinProfile.name = myProfile.name;
+               joinProfile.avatar = myProfile.avatar;
+               invitationTrip.value = trip;
+               showJoinModal.value = false;
+               appPage.value = 'onboarding';
+           } else {
+               alert('找不到此行程，請確認代碼是否正確。');
+           }
+        };
+
+        const showFabMenu = ref(false);
+        const showPlanModal = ref(false);
+        const newPlanItem = reactive({ type: 'todo', text: '', groupSelect: '自訂行李', groupCustom: '', link: '' });
+
+        const handleFabClick = () => {
+          if (activeTab.value === 'schedule') showFabMenu.value = !showFabMenu.value;
+          else if (activeTab.value === 'bookings') openBookingModal(null);
+          else if (activeTab.value === 'expense') openExpenseModal(null);
+          else if (activeTab.value === 'plan') {
+             if (activePlanType.value === 'payment') openPaymentModal(null);
+             else {
+                newPlanItem.type = activePlanType.value;
+                newPlanItem.text = ''; newPlanItem.link = '';
+                newPlanItem.groupSelect = (activePackingTab.value && activePackingTab.value !== '⭐ 重要清單') ? activePackingTab.value : (uniquePackingCategories.value[0] || '自訂行李');
+                newPlanItem.groupCustom = '';
+                showPlanModal.value = true;
+             }
+          }
+        };
+
+        // ================= 智能解析 Google Maps 地點名稱 =================
+        const autoFillWishlist = async () => {
+            const url = newPlanItem.link;
+            if(url && url.includes('http')) {
+                // 如果是 Google Maps 連結，透過 AllOrigins API 抓取網頁標題
+                if (url.includes('goo.gl') || url.includes('google.com/maps')) {
+                    newPlanItem.text = '網址解析中...';
+                    try {
+                        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+                        if (!res.ok) throw new Error('API request failed');
+                        const data = await res.json();
+                        
+                        // 擷取標題
+                        const match = data.contents.match(/<title>(.*?)<\/title>/);
+                        if (match) {
+                            let title = match[1].replace(' - Google Maps', '').replace('Google Maps', '').trim();
+                            newPlanItem.text = title || '自訂想去地點';
+                        } else {
+                            newPlanItem.text = 'Google Maps 地點';
+                        }
+                    } catch(e) {
+                        console.error('抓取網址標題失敗:', e);
+                        newPlanItem.text = 'Google Maps 地點';
+                    }
+                    return;
+                }
+
+                // 其他一般網址處理
+                setTimeout(() => {
+                    if(!newPlanItem.text || newPlanItem.text === '網址解析中...') {
+                        if(url.includes('tabelog.com')) newPlanItem.text = 'Tabelog 餐廳';
+                        else newPlanItem.text = '新景點/參考網頁';
+                    }
+                }, 400);
+            }
+        };
+
+        const addPlanViaModal = () => {
+            if(!newPlanItem.text.trim()) return alert("請輸入項目名稱");
+            let finalStr = newPlanItem.text;
+            if(newPlanItem.type === 'packing') {
+                const groupName = newPlanItem.groupSelect === 'add_new' ? newPlanItem.groupCustom.trim() || '自訂行李' : newPlanItem.groupSelect;
+                finalStr = `[${groupName}] ${newPlanItem.text}`;
+            }
+            if (!currentTrip.value.plans) currentTrip.value.plans = [];
+            currentTrip.value.plans.unshift({ id: 'p_'+Date.now(), type: newPlanItem.type, text: finalStr, link: newPlanItem.link, checkedBy: [], isImportant: false }); 
+            showPlanModal.value = false;
+        };
+        
+        const addWishlistToSchedule = (task) => {
+            openScheduleModal(null);
+            let cleanTitle = task.text;
+            const match = task.text.match(/^\[(.*?)\] (.*)$/);
+            if (match) cleanTitle = match[2];
+            newSchedule.title = cleanTitle;
+            if (task.link) newSchedule.location = task.link;
+            newSchedule.category = '景點';
+            activeTab.value = 'schedule';
+        };
+
+        const handleTripClick = (id) => { if(swipeState.currentX === 0) goToTrip(id); };
+        
+        const goToTrip = (id) => { 
+            const trip = trips.value.find(t => t.id === id);
+            if (trip) {
+                if (!trip.members) trip.members = [];
+                if (!trip.days) trip.days = [{ date: 'Day 1', timeline: [] }];
+                if (!trip.expenses) trip.expenses = [];
+                if (!trip.bookings) trip.bookings = [];
+                if (!trip.payments) trip.payments = [];
+                if (!trip.journals) trip.journals = [];
+                if (!trip.plans) trip.plans = [];
+
+                activeTripId.value = id; 
+                appPage.value = 'tripDetail'; 
+                activeTab.value = 'schedule'; 
+                activeDay.value = 0; 
+                
+                if (trip.defaultCurrency) {
+                    exchangeFrom.value = trip.defaultCurrency;
+                    exchangeTo.value = trip.defaultCurrency === 'TWD' ? 'JPY' : 'TWD'; 
+                }
+            } else {
+                alert('載入行程失敗，找不到資料！');
+                appPage.value = 'home';
+            }
+        };
+        
+        const getMember = (trip, id) => {
+            if(!trip || !trip.members) return myProfile;
+            return trip.members.find(m => m.id === id) || trip.members[0] || myProfile;
+        };
+
+        const isSharedAndNotSoleOwner = (trip) => { return (trip.members || []).length > 1; };
+
+        const confirmLeaveOrDeleteTrip = (trip) => {
+            if (isSharedAndNotSoleOwner(trip)) leaveTrip(trip.id);
+            else deleteTrip(trip.id);
+        };
+
+        const removeMember = (id) => { 
+          if(id === myProfile.id) return alert('無法移除自己'); 
+          if(confirm('確定要移除此成員嗎？')) { 
+            const trip = currentTrip.value;
+            trip.members = (trip.members || []).filter(m => m.id !== id); 
+            trip.memberIds = (trip.memberIds || []).filter(mid => mid !== id);
+          } 
+        };
+
+        const leaveTrip = async (tripId) => {
+          if(confirm('確定要退出這趟行程嗎？')) {
+            const tripRef = doc(db, "trips", tripId);
+            const docSnap = await getDoc(tripRef);
+            if(docSnap.exists()) {
+              const trip = docSnap.data();
+              if(trip.members) trip.members = trip.members.filter(m => m.id !== myProfile.id);
+              if(trip.memberIds) trip.memberIds = trip.memberIds.filter(id => id !== myProfile.id);
+              await setDoc(tripRef, trip);
+            }
+            showMembersModal.value = false;
+            appPage.value = 'home';
+            swipeState.id = null;
+          }
+        };
+
+        const handleImageUpload = (event, targetObj, targetProp) => { 
+            const file = event.target.files[0]; 
+            if (file) compressImage(file, 800, 800, 0.5, (compressedDataUrl) => { targetObj[targetProp] = compressedDataUrl; });
+        };
+        
+        const swipeState = reactive({ id: null, startX: 0, startY: 0, currentX: 0, isSwiping: false });
+        const isSelectionMode = ref(false);
+
+        const onTouchStart = (e, id) => { 
+          if(isSelectionMode.value) return; 
+          swipeState.id = id; swipeState.startX = e.touches[0].clientX; swipeState.startY = e.touches[0].clientY; swipeState.isSwiping = false; swipeState.currentX = 0; 
+        };
+        const onTouchMove = (e, id, direction = 'both') => { 
+          if (swipeState.id !== id || isSelectionMode.value) return; 
+          const currentX = e.touches[0].clientX; const currentY = e.touches[0].clientY;
+          const diffX = currentX - swipeState.startX; const diffY = currentY - swipeState.startY;
+          if (Math.abs(diffY) > Math.abs(diffX)) return;
+          if (direction === 'left' && diffX > 0) return;
+          if (Math.abs(diffX) > 15) {
+            swipeState.isSwiping = true;
+            if (diffX > 0) swipeState.currentX = Math.min(diffX, 80); 
+            else swipeState.currentX = Math.max(diffX, -80);
+          }
+        };
+        const onTouchEnd = (id) => { 
+          if (swipeState.id !== id || isSelectionMode.value) return; 
+          const finalX = swipeState.currentX;
+          swipeState.isSwiping = false; 
+          if (finalX > 45) swipeState.currentX = 80;  
+          else if (finalX < -45) swipeState.currentX = -80; 
+          else { swipeState.currentX = 0; swipeState.id = null; } 
+        };
+
+        const globalSwipe = reactive({ startX: 0, startY: 0 });
+        const onGlobalTouchStart = (e) => {
+            if (e.target.closest('.prevent-global-swipe') || e.target.closest('.swipe-item')) return;
+            globalSwipe.startX = e.touches[0].clientX; globalSwipe.startY = e.touches[0].clientY;
+        };
+        const onGlobalTouchEnd = (e) => {
+            if (e.target.closest('.prevent-global-swipe') || e.target.closest('.swipe-item') || globalSwipe.startX === 0) return;
+            const endX = e.changedTouches[0].clientX; const endY = e.changedTouches[0].clientY;
+            const diffX = endX - globalSwipe.startX; const diffY = endY - globalSwipe.startY;
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 75) {
+                const currentIdx = tabs.findIndex(t => t.id === activeTab.value);
+                if (diffX < 0 && currentIdx < tabs.length - 1) { activeTab.value = tabs[currentIdx + 1].id; showFabMenu.value = false; } 
+                else if (diffX > 0 && currentIdx > 0) { activeTab.value = tabs[currentIdx - 1].id; showFabMenu.value = false; }
+            }
+            globalSwipe.startX = 0; globalSwipe.startY = 0;
+        };
+
+        const checkUrlForInvite = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sharedTripId = urlParams.get('tripId');
+            
+            if (sharedTripId) {
+                const docSnap = await getDoc(doc(db, "trips", sharedTripId));
+                if (docSnap.exists()) {
+                    const trip = docSnap.data();
+                    if (trip.memberIds?.includes(myProfile.id)) {
+                        goToTrip(trip.id);
+                    } else {
+                        joinProfile.accountId = myProfile.accountId;
+                        joinProfile.name = myProfile.name;
+                        joinProfile.avatar = myProfile.avatar;
+                        invitationTrip.value = trip;
+                        appPage.value = 'onboarding';
+                    }
+                } else {
+                    alert('找不到此行程，可能連結有誤或已被刪除。');
+                    if (appPage.value === 'login' || appPage.value === '') appPage.value = 'home';
+                }
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+                if (appPage.value === 'login' || appPage.value === '') appPage.value = 'home';
+            }
+            hasCheckedUrl.value = true;
+        };
+
+        const loadDefaultTrip = async () => {
+            const template = JSON.parse(JSON.stringify(defaultTrips[0]));
+            template.id = Math.floor(1000 + Math.random() * 9000).toString();
+            const oldHostId = template.members[0].id;
+            template.members[0] = { id: myProfile.id, accountId: myProfile.accountId, name: myProfile.name, avatar: myProfile.avatar, role: '主揪' };
+            template.memberIds = [myProfile.id];
+            template.hostId = myProfile.id;
+            
+            template.expenses.forEach(exp => {
+                if (exp.payers[oldHostId]) { exp.payers[myProfile.id] = exp.payers[oldHostId]; delete exp.payers[oldHostId]; }
+                const cIdx = exp.consumers.indexOf(oldHostId);
+                if (cIdx !== -1) exp.consumers[cIdx] = myProfile.id;
+            });
+            template.plans.forEach(plan => {
+                const checkIdx = plan.checkedBy.indexOf(oldHostId);
+                if(checkIdx !== -1) plan.checkedBy[checkIdx] = myProfile.id;
+            });
+            await setDoc(doc(db, "trips", template.id), template);
+        };
+
+        onMounted(() => { fetchRates(); });
+
+        const copyTripCode = () => {
+            navigator.clipboard.writeText(currentTrip.value.id)
+                .then(() => alert('行程代碼已複製！\n您可以將代碼傳給朋友：' + currentTrip.value.id))
+                .catch(() => alert('複製失敗，代碼：' + currentTrip.value.id));
+        };
+
+        // ================= 新增/編輯行程(Trip) =================
+        const showNewTripModal = ref(false); const editingTripId = ref(null);
+        const newTripData = reactive({ title: '', type: 'shared', startDate: '', endDate: '', country: 'JP' });
+        const newTripDuration = computed(() => { if(!newTripData.startDate || !newTripData.endDate) return ''; const s = new Date(newTripData.startDate); const e = new Date(newTripData.endDate); const diff = Math.ceil(Math.abs(e - s) / (1000*60*60*24)) + 1; if (diff > 0) return `${diff}天${diff-1}夜`; return ''; });
+        
+        const openNewTripModal = () => { editingTripId.value = null; Object.assign(newTripData, { title:'', type: homeTab.value, startDate:'', endDate:'', country: 'JP'}); showNewTripModal.value = true; };
+        const editTrip = (trip) => { editingTripId.value = trip.id; Object.assign(newTripData, { title: trip.title, type: trip.type, startDate: trip.startDate || '', endDate: trip.endDate || '', country: trip.country || 'JP' }); swipeState.id = null; showNewTripModal.value = true; };
+        
+        const deleteTrip = async (id) => { 
+            if(confirm('確定要刪除這趟旅程嗎？將無法還原！')) {
+                await deleteDoc(doc(db, "trips", id));
+                swipeState.id = null; 
+            }
+        };
+        
+        const saveNewTrip = async () => {
+          if(!newTripData.title || !newTripData.startDate || !newTripData.endDate) return alert("請填寫名稱、出發與回程日期");
+          const formatDt = (d) => d.replace(/-/g, '.');
+          const countryToCurrency = { 'TW': 'TWD', 'JP': 'JPY', 'KR': 'KRW', 'US': 'USD' };
+          const defaultCurrency = countryToCurrency[newTripData.country] || 'JPY';
+
+          if (editingTripId.value) {
+            const t = trips.value.find(x => x.id === editingTripId.value);
+            if (t) { 
+                t.title = newTripData.title; t.type = newTripData.type; t.country = newTripData.country;
+                t.defaultCurrency = defaultCurrency; t.startDate = newTripData.startDate; t.endDate = newTripData.endDate; 
+                t.date = `${formatDt(newTripData.startDate)} - ${formatDt(newTripData.endDate)}`; 
+                let start = new Date(newTripData.startDate); let end = new Date(newTripData.endDate);
+                let targetDayCount = Math.ceil((end - start) / (1000*60*60*24)) + 1;
+                if (targetDayCount < 1) targetDayCount = 1;
+                if (!t.days) t.days = [];
+                let tempStart = new Date(start);
+                for (let i = 0; i < targetDayCount; i++) {
+                    const dStr = `${(tempStart.getMonth()+1).toString().padStart(2,'0')}/${tempStart.getDate().toString().padStart(2,'0')}`;
+                    if (i < t.days.length) t.days[i].date = dStr;
+                    else t.days.push({ date: dStr, timeline: [] });
+                    tempStart.setDate(tempStart.getDate() + 1);
+                }
+                if (t.days.length > targetDayCount) t.days = t.days.slice(0, targetDayCount);
+                
+                await setDoc(doc(db, "trips", t.id), t);
+            }
+          } else {
+            const newTripId = Math.floor(1000 + Math.random() * 9000).toString();
+            const trip = { 
+                id: newTripId, title: newTripData.title, startDate: newTripData.startDate, endDate: newTripData.endDate, date: `${formatDt(newTripData.startDate)} - ${formatDt(newTripData.endDate)}`, type: newTripData.type, 
+                country: newTripData.country, defaultCurrency: defaultCurrency, countdown: Math.max(0, Math.ceil((new Date(newTripData.startDate) - new Date()) / 86400000)), weather: 25, 
+                hostId: myProfile.id,
+                memberIds: [myProfile.id], 
+                members: [{...myProfile, role: '主揪'}], days: [], expenses: [], journals: [], bookings: [], payments: [], plans: generateDefaultPacking() 
+            };
+            if(newTripData.startDate && newTripData.endDate) { let start = new Date(newTripData.startDate); let end = new Date(newTripData.endDate); while(start <= end) { trip.days.push({ date: `${(start.getMonth()+1).toString().padStart(2,'0')}/${start.getDate().toString().padStart(2,'0')}`, timeline: [] }); start.setDate(start.getDate() + 1); } } else { trip.days.push({ date: 'Day 1', timeline: [] }); }
+            await setDoc(doc(db, "trips", newTripId), trip);
+          }
+          showNewTripModal.value = false;
+        };
+
+        const shareTripLink = async () => { 
+          const link = `${window.location.origin}${window.location.pathname}?tripId=${currentTrip.value.id}`; 
+          if (navigator.share) {
+             try { await navigator.share({ title: currentTrip.value.title, url: link }); } catch (error) { console.warn('分享取消或錯誤'); }
+          } else {
+             navigator.clipboard.writeText(link).then(() => { alert('邀請連結已複製！\n\n您可以直接貼給朋友點擊加入。'); }).catch(() => { alert('複製失敗，請手動複製網址或分享行程代碼：' + currentTrip.value.id); }); 
+          }
+        };
+        
+        const joinTrip = async () => { 
+            if (!joinProfile.name || !joinProfile.name.trim()) return alert('請輸入您的顯示名稱'); 
+
+            const targetRef = doc(db, "trips", invitationTrip.value.id);
+            const docSnap = await getDoc(targetRef);
+            if (!docSnap.exists()) {
+                alert("發生錯誤：找不到該行程，可能已被刪除。");
+                appPage.value = 'home';
+                return;
+            }
+
+            const targetTrip = docSnap.data();
+            if (!targetTrip.members) targetTrip.members = [];
+            if (!targetTrip.memberIds) targetTrip.memberIds = [];
+
+            const nameExists = targetTrip.members.some(m => m.name === joinProfile.name.trim() && m.id !== myProfile.id);
+            if (nameExists) return alert("此暱稱在行程中已被其他成員使用，請換一個避免混淆！");
+
+            myProfile.name = joinProfile.name.trim();
+            myProfile.avatar = joinProfile.avatar;
+
+            const existingMember = targetTrip.members.find(m => m.accountId === myProfile.accountId);
+            if (existingMember) {
+                myProfile.id = existingMember.id;
+                existingMember.name = myProfile.name;
+                existingMember.avatar = myProfile.avatar; 
+            } else {
+                targetTrip.members.push({ id: myProfile.id, accountId: myProfile.accountId, name: myProfile.name, avatar: myProfile.avatar, role: '同行' }); 
+                if(!targetTrip.memberIds.includes(myProfile.id)) targetTrip.memberIds.push(myProfile.id);
+            }
+            
+            safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile));
+            await setDoc(targetRef, targetTrip);
+            goToTrip(targetTrip.id);
+        };
+        
+        const syncMyProfileToAllTrips = () => {
+            trips.value.forEach(async (t) => {
+                if(!t.members) return;
+                const m = t.members.find(x => x.accountId === myProfile.accountId || x.id === myProfile.id);
+                if (m) {
+                    let changed = false;
+                    if(m.accountId !== myProfile.accountId) { m.accountId = myProfile.accountId; changed = true; }
+                    if(m.name !== myProfile.name) { m.name = myProfile.name; changed = true; }
+                    if(m.avatar !== myProfile.avatar) { m.avatar = myProfile.avatar; changed = true; }
+                    if (changed && !isRemoteUpdate) await setDoc(doc(db, "trips", t.id), t);
+                }
+            });
+        };
+
+        const openProfileModal = () => { editingProfile.accountId = myProfile.accountId; editingProfile.name = myProfile.name; editingProfile.avatar = myProfile.avatar; showProfileModal.value = true; };
+        
+        const saveProfile = async () => { 
+            if(!editingProfile.name.trim()) return alert("名稱不能為空");
+            
+            if (currentTrip.value) {
+                const nameExists = currentTrip.value.members.some(m => m.name === editingProfile.name.trim() && m.id !== myProfile.id);
+                if (nameExists) return alert("此名稱在當前行程中已被使用，請換一個暱稱！");
+            }
+
+            myProfile.name = editingProfile.name.trim(); 
+            myProfile.avatar = editingProfile.avatar; 
+            syncMyProfileToAllTrips(); 
+            safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile)); 
+            
+            if (/^\d{4}$/.test(myProfile.id)) {
+                await setDoc(doc(db, "users", myProfile.id), { 
+                    id: myProfile.id, 
+                    name: myProfile.name, 
+                    avatar: myProfile.avatar 
+                }, { merge: true });
+            }
+            
+            showProfileModal.value = false; 
+        };
+        
+        const showMembersModal = ref(false);
+        const editMemberRole = (m) => { const newRole = prompt('設定專屬稱號', m.role || '同行'); if(newRole !== null && newRole.trim() !== '') m.role = newRole.trim(); else if(newRole !== null) m.role = '同行'; };
+        const editMemberName = (m) => {
+            const newName = prompt('修改成員名稱', m.name);
+            if (newName && newName.trim() !== '') {
+                const nameExists = currentTrip.value.members.some(other => other.name === newName.trim() && other.id !== m.id);
+                if (nameExists) return alert("此名稱已被其他成員使用，不可重複！");
+
+                m.name = newName.trim();
+                if (m.accountId === myProfile.accountId || m.id === myProfile.id) {
+                    myProfile.name = m.name; safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile));
+                }
+                syncMyProfileToAllTrips();
+            }
+        };
+
+        // ================= 1. Schedule & Google Maps =================
+        const cpblTeams = ['味全龍', '中信兄弟', '統一獅', '樂天桃猿', '富邦悍將', '台鋼雄鷹', '其他'];
+        const cpblStadiums = ['大巨蛋', '新莊', '洲際', '亞太', '天母', '澄清湖', '桃園', '其他'];
+        const getCategoryColor = (cat) => ({ '美食': '#C49799', '景點': '#3E5C76', '交通': '#748299', '住宿': '#1D2D44', '棒球': '#3E5C76' }[cat] || '#CBD5E1');
+        
+        const displayTimeline = computed(() => { 
+          if (!currentTrip.value || !currentTrip.value.days) return []; 
+          if (activeDay.value === 'highlights') { 
+            let list = []; currentTrip.value.days.forEach((day, dIdx) => { (day.timeline || []).forEach(item => { if (item.isFavorite) list.push({ ...item, dayDate: `D${dIdx+1}`, dIdx }); }); }); 
+            return list.sort((a, b) => a.dIdx - b.dIdx || a.time.localeCompare(b.time)); 
+          } 
+          return currentTrip.value.days[activeDay.value]?.timeline || []; 
+        });
+        
+        const toggleFavorite = (item) => { item.isFavorite = !item.isFavorite; };
+        const openNavigation = (loc) => window.location.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`;
+        const toggleMapRoute = (item) => { item.inMapRoute = !item.inMapRoute; };
+        const syncToGoogleMaps = () => {
+          const locations = [];
+          if (activeDay.value === 'highlights') { (currentTrip.value.days || []).forEach(d => { (d.timeline || []).forEach(t => { if (t.location) locations.push(t.location); }); }); } 
+          else { const dayTimeline = currentTrip.value.days?.[activeDay.value]?.timeline || []; dayTimeline.forEach(t => { if (t.location) locations.push(t.location); }); }
+          if (locations.length === 0) return alert('目前畫面中沒有行程地點喔！');
+          let url = '';
+          if (locations.length === 1) { url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent('My Location')}&destination=${encodeURIComponent(locations[0])}`; } 
+          else { const destination = locations[locations.length - 1]; const waypoints = locations.slice(0, locations.length - 1); url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent('My Location')}&destination=${encodeURIComponent(destination)}&waypoints=${waypoints.map(l => encodeURIComponent(l)).join('|')}`; }
+          window.location.href = url;
+        };
+
+        const detailSchedule = ref(null); const openScheduleDetail = (item) => { if(swipeState.currentX === 0) detailSchedule.value = item; };
+        const showScheduleModal = ref(false); const editingScheduleId = ref(null);
+        const newSchedule = reactive({ dayIndex: 0, time: '', title: '', location: '', category: '景點', note: '', baseball: { stadiumSelect: '大巨蛋', stadiumCustom: '', homeSelect: '中信兄弟', awaySelect: '統一獅' } });
+        
+        watch(() => newSchedule.time, (val) => { if (val && val.length === 4 && /^\d{4}$/.test(val)) newSchedule.time = val.slice(0, 2) + ':' + val.slice(2); });
+        watch(() => newSchedule.baseball.stadiumSelect, (val) => { 
+          if (newSchedule.category === '棒球') { newSchedule.location = val === '其他' ? newSchedule.baseball.stadiumCustom : val; const stadiumToTeam = { '新莊': '富邦悍將', '洲際': '中信兄弟', '天母': '味全龍', '澄清湖': '台鋼雄鷹', '桃園': '樂天桃猿', '亞太': '統一獅' }; if (stadiumToTeam[val]) newSchedule.baseball.homeSelect = stadiumToTeam[val]; }
+        });
+        watch(() => newSchedule.baseball.stadiumCustom, (val) => { if (newSchedule.category === '棒球' && newSchedule.baseball.stadiumSelect === '其他') newSchedule.location = val; });
+        watch(() => newSchedule.category, (val) => { if (val === '棒球' && newSchedule.baseball.stadiumSelect !== '其他') newSchedule.location = newSchedule.baseball.stadiumSelect; });
+
+        const openScheduleModal = (item) => { 
+          if(item) { editingScheduleId.value = item.id; let dIdx = activeDay.value === 'highlights' ? item.dIdx : activeDay.value; Object.assign(newSchedule, { ...item, dayIndex: dIdx }); 
+            if(item.category === '棒球' && item.baseballInfo) { newSchedule.baseball.stadiumSelect = cpblStadiums.includes(item.baseballInfo.stadium) ? item.baseballInfo.stadium : '其他'; newSchedule.baseball.stadiumCustom = newSchedule.baseball.stadiumSelect === '其他' ? item.baseballInfo.stadium : ''; } 
+          } else { editingScheduleId.value = null; Object.assign(newSchedule, { dayIndex: activeDay.value === 'highlights' ? 0 : activeDay.value, time:'', title:'', location:'', category:'景點', note:'' }); }
+          swipeState.id = null; showScheduleModal.value = true; 
+        };
+        const editSchedule = openScheduleModal;
+        const deleteSchedule = (id) => { if(confirm('確定刪除？')) { const targetDay = activeDay.value === 'highlights' ? 0 : activeDay.value; currentTrip.value.days[targetDay].timeline = currentTrip.value.days[targetDay].timeline.filter(t => t.id !== id); } swipeState.id = null; };
+        
+        const saveSchedule = () => {
+          if (!newSchedule.title) return alert('請填寫標題');
+          let scheduleItem = { id: editingScheduleId.value || 't_'+Date.now(), time: newSchedule.time || '', title: newSchedule.title, location: newSchedule.location, category: newSchedule.category, note: newSchedule.note, isFavorite: false, inMapRoute: false };
+          if (newSchedule.category === '棒球') scheduleItem.baseballInfo = { stadium: newSchedule.baseball.stadiumSelect === '其他' ? newSchedule.baseball.stadiumCustom : newSchedule.baseball.stadiumSelect, home: newSchedule.baseball.homeSelect, away: newSchedule.baseball.awaySelect };
+          if (!currentTrip.value.days) currentTrip.value.days = [{ date: 'Day 1', timeline: [] }];
+
+          if (editingScheduleId.value) { 
+             for (let i = 0; i < currentTrip.value.days.length; i++) {
+                 if(!currentTrip.value.days[i].timeline) currentTrip.value.days[i].timeline = [];
+                 const idx = currentTrip.value.days[i].timeline.findIndex(t => t.id === editingScheduleId.value);
+                 if (idx > -1) { scheduleItem.isFavorite = currentTrip.value.days[i].timeline[idx].isFavorite; scheduleItem.inMapRoute = currentTrip.value.days[i].timeline[idx].inMapRoute; currentTrip.value.days[i].timeline.splice(idx, 1); break; }
+             }
+          }
+          const targetDay = newSchedule.dayIndex;
+          if (!currentTrip.value.days[targetDay].timeline) currentTrip.value.days[targetDay].timeline = [];
+          currentTrip.value.days[targetDay].timeline.push(scheduleItem);
+          currentTrip.value.days[targetDay].timeline.sort((a, b) => a.time.localeCompare(b.time)); 
+          showScheduleModal.value = false;
+        };
+
+        // ================= 2. Bookings =================
+        const showBookingModal = ref(false); const editingBookingId = ref(null);
+        const newBooking = reactive({ type: 'flight', title: '', code: '', loc1: '', time1: '', loc2: '', time2: '', address: '', checkIn: '', latestCheckIn: '', checkOut: '', mapLink: '', amount: '', info: '', image: null, trainType: 'HSR', trainNo: '', seat: '' });
+        
+        const autoFillBooking = (e) => {
+          if (!e.target.files.length) return; alert('正在辨識憑證...');
+          setTimeout(() => {
+            if (newBooking.type === 'flight') { Object.assign(newBooking, { title: '星宇航空 JX800', code: 'A1B2C3', loc1: 'TPE', time1: '08:30', loc2: 'NRT', time2: '12:45' }); } 
+            else if (newBooking.type === 'train') { Object.assign(newBooking, { trainType: 'HSR', trainNo: '0803', seat: '6車 14A', loc1: '台北', time1: '09:00', loc2: '左營', time2: '10:45' }); } 
+            else if (newBooking.type === 'hotel') { Object.assign(newBooking, { title: '合拍行旅-民生館', address: '臺南市中西區民生路二段76號6樓', mapLink: 'https://maps.google.com/?q=臺南市中西區民生路二段76號6樓', checkIn: '22:00前', latestCheckIn: '22:00', checkOut: '11:00', amount: '' }); }
+          }, 800);
+        };
+
+        const openBookingModal = (bk) => { if(bk){ editingBookingId.value = bk.id; Object.assign(newBooking, { ...bk }); } else { editingBookingId.value = null; Object.assign(newBooking, { type: 'flight', title: '', code: '', loc1: '', time1: '', loc2: '', time2: '', address: '', checkIn: '', latestCheckIn: '', checkOut: '', mapLink: '', amount: '', info: '', image: null, trainType: 'HSR', trainNo: '', seat: '' }); } swipeState.id = null; showBookingModal.value = true; };
+        const editBooking = openBookingModal;
+        const deleteBooking = (id) => { if(confirm('確定刪除此憑證？')) currentTrip.value.bookings = currentTrip.value.bookings.filter(b => b.id !== id); swipeState.id = null; };
+        const saveBooking = () => { if (!newBooking.title) return alert('請輸入標題'); const bkData = { ...newBooking, id: editingBookingId.value || 'b_'+Date.now() }; if (editingBookingId.value) { const idx = currentTrip.value.bookings.findIndex(b => b.id === editingBookingId.value); currentTrip.value.bookings[idx] = bkData; } else currentTrip.value.bookings.push(bkData); showBookingModal.value = false; };
+
+        // ================= 3. Expense (加入 Firebase Storage 收據上傳) =================
+        
+        // ★ 新增自動記憶偏好，讓下次填寫支出自動帶入上一次設定
+        let lastExpPref = safeGetLocal('nuonuo_exp_pref', null);
+        if (!lastExpPref) {
+            lastExpPref = { currency: 'TWD', paymentMethod: 'cash', payerMode: 'single', splitMode: 'all' };
+        }
+
+        const getExpenseTotal = (exp) => Object.values(exp.payers).reduce((a, b) => a + (b || 0), 0);
+        const getPayersList = (exp) => Object.keys(exp.payers).filter(id => exp.payers[id] > 0).map(id => parseInt(id));
+        const totalExpenseTWD = computed(() => { if(!currentTrip.value) return 0; return Math.round((currentTrip.value.expenses || []).reduce((s, e) => s + (getExpenseTotal(e) * (rates[e.currency] || 1)), 0)); });
+        
+        const settlements = computed(() => {
+          if(!currentTrip.value) return [];
+          let bal = {}; (currentTrip.value.members || []).forEach(m => bal[m.id] = 0);
+          (currentTrip.value.expenses || []).forEach(e => { 
+            const totalTWD = getExpenseTotal(e) * (rates[e.currency] || 1); 
+            const perPersonTWD = totalTWD / (e.consumers || []).length; 
+            for (let pid in e.payers) { if(bal[pid] === undefined) bal[pid] = 0; bal[pid] += (e.payers[pid] * (rates[e.currency] || 1)); }
+            (e.consumers || []).forEach(cid => { if(bal[cid] === undefined) bal[cid] = 0; bal[cid] -= perPersonTWD; }); 
+          });
+          let debtors = [], creditors = []; for (let id in bal) { if (bal[id] < -1) debtors.push({ id: parseInt(id), amount: -bal[id] }); else if (bal[id] > 1) creditors.push({ id: parseInt(id), amount: bal[id] }); }
+          let transactions = []; debtors.sort((a, b) => b.amount - a.amount); creditors.sort((a, b) => b.amount - a.amount);
+          let i = 0, j = 0; while (i < debtors.length && j < creditors.length) { let amount = Math.min(debtors[i].amount, creditors[j].amount); transactions.push({ from: debtors[i].id, to: creditors[j].id, amount: amount }); debtors[i].amount -= amount; creditors[j].amount -= amount; if (debtors[i].amount < 1) i++; if (creditors[j].amount < 1) j++; }
+          return transactions;
+        });
+        
+        const shareBill = () => { let text = "【趟旅費結算】\n"; settlements.value.forEach(s => text += `${getMember(currentTrip.value, s.from).name} 需轉給 ${getMember(currentTrip.value, s.to).name} NT$ ${Math.round(s.amount)}\n`); alert("已複製！\n\n" + text); };
+        
+        const detailExpense = ref(null); const openExpenseDetail = (exp) => { if(swipeState.currentX === 0) detailExpense.value = exp; };
+        const deleteExpense = (id) => { if(confirm('確定刪除此筆支出？')) currentTrip.value.expenses = currentTrip.value.expenses.filter(e => e.id !== id); swipeState.id = null; };
+        
+        const showExpenseModal = ref(false); const editingExpenseId = ref(null);
+        const newExpense = reactive({ desc: '', currency: 'TWD', category: '其他', paymentMethod: 'cash', payerMode: 'single', singlePayerId: 1, singleAmount: null, multiPayersAmount: {}, splitMode: 'all', partialConsumers: [], note: '', receiptUrl: null });
+        
+        const convertedExpenseTWD = computed(() => {
+          let total = 0;
+          if (newExpense.payerMode === 'single') total = Number(newExpense.singleAmount) || 0;
+          else { for (let id in newExpense.multiPayersAmount) total += Number(newExpense.multiPayersAmount[id]) || 0; }
+          if (newExpense.currency === 'TWD') return total;
+          return Math.round(total * (rates[newExpense.currency] || 1));
+        });
+
+        const isUploadingReceipt = ref(false);
+        const uploadReceiptImage = async (event, expenseObj) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            isUploadingReceipt.value = true;
+            compressImage(file, 600, 600, 0.4, async (compressedDataUrl) => {
+                try {
+                    const filePath = `receipts/${myProfile.id}_${Date.now()}_${Math.floor(Math.random()*1000)}.jpg`;
+                    const imageRef = storageRef(storage, filePath);
+                    
+                    await uploadString(imageRef, compressedDataUrl, 'data_url');
+                    const downloadUrl = await getDownloadURL(imageRef);
+                    expenseObj.receiptUrl = downloadUrl;
+                } catch (error) {
+                    console.error('上傳失敗:', error);
+                    alert('圖片上傳失敗，請檢查網路狀態或 Firebase Storage 權限設定。');
+                } finally {
+                    isUploadingReceipt.value = false;
+                }
+            });
+        };
+
+        const openExpenseModal = (exp) => { 
+          if(exp){ 
+            editingExpenseId.value = exp.id; 
+            const payerIds = getPayersList(exp);
+            const isSinglePayer = payerIds.length === 1;
+            Object.assign(newExpense, { desc: exp.desc, currency: exp.currency, category: exp.category || '其他', paymentMethod: exp.paymentMethod, payerMode: isSinglePayer ? 'single' : 'multi', note: exp.note || '', receiptUrl: exp.receiptUrl || null }); 
+            if (isSinglePayer) { newExpense.singlePayerId = payerIds[0]; newExpense.singleAmount = exp.payers[newExpense.singlePayerId]; } 
+            else { (currentTrip.value.members || []).forEach(m => newExpense.multiPayersAmount[m.id] = exp.payers[m.id] || null); }
+            
+            const allMemberIdsStr = (currentTrip.value.members || []).map(m => m.id).sort().join(',');
+            const consumerIdsStr = [...(exp.consumers || [])].sort().join(',');
+            const payerIdsStr = [...payerIds].sort().join(',');
+            
+            if (consumerIdsStr === allMemberIdsStr) { newExpense.splitMode = 'all'; newExpense.partialConsumers = [...(exp.consumers || [])]; } 
+            else if (consumerIdsStr === payerIdsStr) { newExpense.splitMode = 'none'; newExpense.partialConsumers = [...(exp.consumers || [])]; } 
+            else { newExpense.splitMode = 'partial'; newExpense.partialConsumers = [...(exp.consumers || [])]; }
+          }
+          else { 
+            editingExpenseId.value = null; 
+            // ★ 新增記帳時，自動帶入上次設定的幣別、支付方式與分帳模式
+            Object.assign(newExpense, { 
+                desc: '', 
+                currency: lastExpPref.currency || currentTrip.value?.defaultCurrency || 'JPY', 
+                category: '其他', 
+                paymentMethod: lastExpPref.paymentMethod || 'cash', 
+                payerMode: lastExpPref.payerMode || 'single', 
+                singlePayerId: myProfile.id, 
+                singleAmount: null, 
+                multiPayersAmount: {}, 
+                splitMode: lastExpPref.splitMode || 'all', 
+                partialConsumers: (currentTrip.value.members || []).map(m=>m.id), 
+                note: '', 
+                receiptUrl: null 
+            }); 
+            (currentTrip.value.members || []).forEach(m => newExpense.multiPayersAmount[m.id] = null); 
+          }
+          swipeState.id = null; showExpenseModal.value = true; 
+        };
+        const editExpense = openExpenseModal;
+        
+        const saveExpense = () => {
+          if (!newExpense.desc && ['早餐', '午餐', '晚餐', '點心', '購物', '車資', '交通', '住宿', '門票', '其他'].includes(newExpense.category)) { newExpense.desc = newExpense.category; } 
+          else if (!newExpense.desc) { return alert('請填寫項目名稱或資訊'); }
+
+          let finalPayers = {}; let totalAmount = 0;
+          if (newExpense.payerMode === 'single') { 
+            if (!newExpense.singleAmount) return alert('請填寫金額'); 
+            finalPayers[newExpense.singlePayerId] = newExpense.singleAmount; totalAmount = newExpense.singleAmount;
+          } else { 
+            for (let id in newExpense.multiPayersAmount) { let amt = newExpense.multiPayersAmount[id] || 0; if (amt > 0) { finalPayers[id] = amt; totalAmount += amt; } } 
+            if (totalAmount === 0) return alert('請填寫付款金額'); 
+          }
+          
+          let finalConsumers = [];
+          if (newExpense.splitMode === 'all') { finalConsumers = (currentTrip.value.members || []).map(m => m.id); } 
+          else if (newExpense.splitMode === 'partial') { if (newExpense.partialConsumers.length === 0) return alert('請至少勾選一位分攤成員'); finalConsumers = [...newExpense.partialConsumers]; } 
+          else if (newExpense.splitMode === 'none') { finalConsumers = Object.keys(finalPayers).map(Number); }
+
+          const expData = { id: editingExpenseId.value || 'e_'+Date.now(), desc: newExpense.desc, currency: newExpense.currency, category: newExpense.category, paymentMethod: newExpense.paymentMethod, payers: finalPayers, consumers: finalConsumers, note: newExpense.note, receiptUrl: newExpense.receiptUrl };
+          if (!currentTrip.value.expenses) currentTrip.value.expenses = [];
+          if (editingExpenseId.value) { const idx = currentTrip.value.expenses.findIndex(e => e.id === editingExpenseId.value); currentTrip.value.expenses[idx] = expData; } else currentTrip.value.expenses.unshift(expData);
+          
+          // ★ 記住本次偏好設定，供下次使用
+          lastExpPref.currency = newExpense.currency;
+          lastExpPref.paymentMethod = newExpense.paymentMethod;
+          lastExpPref.payerMode = newExpense.payerMode;
+          lastExpPref.splitMode = newExpense.splitMode;
+          safeSetLocal('nuonuo_exp_pref', JSON.stringify(lastExpPref));
+
+          showExpenseModal.value = false;
+        };
+
+        // 暴露函式與變數給模板 (請確保所有新增的變數都在這裡匯出！)
+        return {
+          appPage, homeTab, activeTab, activeDay, MY_USER_ID: myProfile.id, tabs, trips, filteredTrips, currentTrip, goToTrip, handleTripClick, getMember,
+          myProfile, showProfileModal, editingProfile, openProfileModal, saveProfile, handleImageUpload, editMemberName,
+          showNewTripModal, newTripData, newTripDuration, openNewTripModal, saveNewTrip, editTrip, deleteTrip, editingTripId,
+          invitationTrip, joinProfile, shareTripLink, joinTrip, removeMember, leaveTrip, confirmLeaveOrDeleteTrip, isSharedAndNotSoleOwner, copyTripCode, loadDefaultTrip,
+          swipeState, onTouchStart, onTouchMove, onTouchEnd, onGlobalTouchStart, onGlobalTouchEnd, syncToGoogleMaps, toggleMapRoute, handleFabClick, showFabMenu, showHomeFabMenu, openJoinModal, processJoinCode, showJoinModal, joinCode,
+          cpblTeams, cpblStadiums, getCategoryColor, displayTimeline, toggleFavorite, openNavigation, detailSchedule, openScheduleDetail, deleteSchedule, showScheduleModal, editingScheduleId, newSchedule, openScheduleModal, editSchedule, saveSchedule,
+          showBookingModal, editingBookingId, newBooking, openBookingModal, editBooking, saveBooking, deleteBooking, autoFillBooking, requirePin, pinModal, confirmPin,
+          rates, totalExpenseTWD, settlements, shareBill, detailExpense, openExpenseDetail, deleteExpense, showExpenseModal, editingExpenseId, newExpense, openExpenseModal, editExpense, saveExpense, getExpenseTotal, getPayersList, getExpenseIcon, isFetchingRates, convertedExpenseTWD, fetchRates,
+          newJournal, addJournal, handleJournalImage, activePlanType, filteredPlans, editPlan, deletePlan, isTaskFullyDone, toggleTaskCheck, packingGroups, activePackingTab, availablePackingTabs, clearPackingList, getItemName, getGroupName, addWishlistToSchedule, getValidLink,
+          showPaymentModal, editingPaymentId, newPayment, openPaymentModal, editPayment, savePayment, deletePayment, viewQrCode, showMembersModal, editMemberRole,
+          currentTime, currentDate, currentWeekday,
+          exchangeFrom, exchangeTo, calcInput, handleCalc, exchangeAmount, swapExchange, standaloneConvertedAmount, addCalcToExpense,
+          showPlanModal, newPlanItem, addPlanViaModal, autoFillWishlist,
+          showImportModal, importCategories, uniquePackingCategories, executeImport,
+          isCustomRate, manualRate,
+          isSelectionMode, selectedPackingIds, toggleSelection, onPackingItemClick, startLongPress, cancelLongPress, deleteSelectedPacking,
+          onCalcFocus, calcHistory, showCalcHistoryModal,
+          availableAvatars, showAvatarPicker, openAvatarPicker, selectAvatar,
+          isAuthReady, logout,
+          loginCode, handleCodeLogin,
+          isUploadingReceipt, uploadReceiptImage
+        };
+      }
+    }).mount('#app');
+  </script>
 </body>
 </html>
