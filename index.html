@@ -351,7 +351,22 @@
                 <div class="card-dashed"></div>
                 <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-700 text-xs tracking-wider uppercase">Settlement</h3><button @click="shareBill" class="text-app-primaryDark text-[10px] px-2.5 py-1 rounded border border-app-primaryDark/30 bg-app-primaryDark/10 font-bold btn-press"><i class="fas fa-share-alt mr-1"></i>分享結算</button></div>
                 <div v-if="settlements.length === 0" class="text-center text-xs text-gray-500 py-4 font-serif border border-dashed border-gray-300 rounded-lg bg-app-cardAlt">帳目已結清</div>
-                <div v-for="(s, idx) in settlements" :key="idx" class="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0"><div class="flex items-center gap-2"><img :src="getMember(currentTrip, s.from).avatar" class="w-6 h-6 rounded-full border border-gray-200 object-cover p-0.5"><i class="fas fa-arrow-right text-[8px] text-gray-400"></i><img :src="getMember(currentTrip, s.to).avatar" class="w-6 h-6 rounded-full border border-gray-200 object-cover p-0.5"></div><div class="font-serif font-bold text-app-textMain text-sm">NT$ {{ Math.round(s.amount).toLocaleString() }}</div></div>
+                
+                <!-- 修改：結算明細清楚顯示「頭像＋名字」 -->
+                <div v-for="(s, idx) in settlements" :key="idx" class="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
+                  <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 bg-gray-50 pr-2 rounded-full border border-gray-100">
+                       <img :src="getMember(currentTrip, s.from).avatar" class="w-6 h-6 rounded-full border border-gray-200 object-cover p-0.5 bg-white">
+                       <span class="text-[10px] font-bold text-gray-600 max-w-[50px] truncate">{{ getMember(currentTrip, s.from).name }}</span>
+                    </div>
+                    <i class="fas fa-arrow-right text-[10px] text-gray-400"></i>
+                    <div class="flex items-center gap-1.5 bg-gray-50 pr-2 rounded-full border border-gray-100">
+                       <img :src="getMember(currentTrip, s.to).avatar" class="w-6 h-6 rounded-full border border-gray-200 object-cover p-0.5 bg-white">
+                       <span class="text-[10px] font-bold text-gray-600 max-w-[50px] truncate">{{ getMember(currentTrip, s.to).name }}</span>
+                    </div>
+                  </div>
+                  <div class="font-serif font-bold text-app-textMain text-sm">NT$ {{ Math.round(s.amount).toLocaleString() }}</div>
+                </div>
               </div>
 
               <div class="space-y-3 pb-20">
@@ -361,10 +376,11 @@
                     <button @click="openExpenseModal(exp)" class="bg-app-primary text-white w-16 flex flex-col items-center justify-center font-bold text-xs h-full"><i class="fas fa-pen mb-1"></i>編輯</button>
                     <button @click="deleteExpense(exp.id)" class="bg-[#0D1321] text-white w-16 flex flex-col items-center justify-center font-bold text-xs h-full"><i class="fas fa-trash mb-1"></i>刪除</button>
                   </div>
-                  <div :class="['bg-white p-4 rounded-xl shadow-lg border border-white/60 relative z-10 swipe-item cursor-pointer transition-colors hover:bg-gray-50 prevent-global-swipe', swipeState.id === exp.id && swipeState.isSwiping ? 'swiping' : '']"
+                  <!-- 修改：將 p-4 改為 p-5 且設為 block w-full text-left，並讓內部保持 flex -->
+                  <div :class="['bg-white p-5 rounded-xl shadow-lg border border-white/60 relative z-10 swipe-item cursor-pointer transition-colors hover:bg-gray-50 prevent-global-swipe w-full text-left block', swipeState.id === exp.id && swipeState.isSwiping ? 'swiping' : '']"
                        :style="{ transform: `translateX(${swipeState.id === exp.id ? swipeState.currentX : 0}px)` }"
                        @touchstart="onTouchStart($event, exp.id)" @touchmove="onTouchMove($event, exp.id)" @touchend="onTouchEnd(exp.id)" @click="openExpenseDetail(exp)">
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center w-full">
                       <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded bg-app-cardAlt text-app-primaryDark border border-gray-200 flex items-center justify-center text-xs"><i :class="getExpenseIcon(exp.category)"></i></div>
                         <div>
@@ -485,13 +501,14 @@
             <div v-else-if="activeTab === 'plan'" class="pt-[90px] pb-5 px-5" key="plan">
               <h2 class="font-serif text-3xl font-bold text-app-textMain mb-4 tracking-wider drop-shadow-md">Plan</h2>
               <div class="flex bg-white p-1 rounded-lg mb-6 overflow-x-auto no-scrollbar border border-white/60 shadow-md prevent-global-swipe">
-                <button v-for="type in ['todo', 'wishlist', 'packing', 'shopping', 'payment']" :key="type" @click="activePlanType = type; isSelectionMode = false" :class="['flex-none px-3.5 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap', activePlanType === type ? 'bg-app-primaryDark text-white' : 'text-gray-500 hover:bg-app-cardAlt']">
-                  {{ type === 'todo' ? '待辦' : type === 'wishlist' ? '想去' : type === 'packing' ? '行李' : type === 'shopping' ? '購物' : '收款' }}
+                <!-- 修改：合併待辦與購物，並更新標籤 -->
+                <button v-for="type in ['todo', 'wishlist', 'packing', 'payment']" :key="type" @click="activePlanType = type; isSelectionMode = false" :class="['flex-none px-3.5 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap', activePlanType === type ? 'bg-app-primaryDark text-white' : 'text-gray-500 hover:bg-app-cardAlt']">
+                  {{ type === 'todo' ? '待辦' : type === 'wishlist' ? '想去' : type === 'packing' ? '行李' : '收款' }}
                 </button>
               </div>
               
-              <!-- 待辦 & 購物 & 想去 -->
-              <div v-if="activePlanType === 'todo' || activePlanType === 'shopping' || activePlanType === 'wishlist'" class="pb-24">
+              <!-- 待辦 & 想去 -->
+              <div v-if="activePlanType === 'todo' || activePlanType === 'wishlist'" class="pb-24">
                 <div v-if="filteredPlans.length === 0" class="text-center text-white py-12 bg-white/20 backdrop-blur-sm rounded-xl border border-dashed border-white/40 text-sm font-serif shadow-sm">目前清單為空</div>
                 <div v-for="task in filteredPlans" :key="task.id" class="relative mb-2">
                   <div class="absolute inset-y-0 left-0 right-0 flex justify-between bg-app-primary rounded-xl overflow-hidden">
@@ -501,6 +518,12 @@
                   <div :class="['bg-white p-4 rounded-xl border border-white/60 flex items-center relative z-10 swipe-item cursor-pointer transition-colors shadow-sm prevent-global-swipe', swipeState.id === task.id && swipeState.isSwiping ? 'swiping' : '']"
                        :style="{ transform: `translateX(${swipeState.id === task.id ? swipeState.currentX : 0}px)` }"
                        @touchstart="onTouchStart($event, task.id)" @touchmove="onTouchMove($event, task.id)" @touchend="onTouchEnd(task.id)">
+                    
+                    <!-- 修改：加入星號按鈕 -->
+                    <button @click.stop="task.isImportant = !task.isImportant" class="mr-2.5 shrink-0 btn-press active:scale-125 transition-transform">
+                       <i class="fas fa-star text-base drop-shadow-sm transition-colors" :class="task.isImportant ? 'text-yellow-400' : 'text-gray-200'"></i>
+                    </button>
+                    
                     <input type="checkbox" :checked="task.checkedBy.includes(MY_USER_ID)" @change="toggleTaskCheck(task)" class="w-4 h-4 accent-app-primaryDark rounded border-gray-300 mr-3 cursor-pointer shrink-0 bg-transparent">
                     <span :class="['text-sm flex-1 truncate pr-2', isTaskFullyDone(task) ? 'line-through text-gray-400' : 'text-app-textMain font-medium']">{{ task.text }}</span>
                     <div class="flex -space-x-1.5 shrink-0" v-if="task.checkedBy.length > 0 && !isTaskFullyDone(task)"><img v-for="mid in task.checkedBy" :key="mid" :src="getMember(currentTrip, mid).avatar" class="w-6 h-6 rounded-full border-2 border-white object-cover bg-gray-100 shadow-sm p-0.5"></div>
@@ -712,7 +735,7 @@
         <div class="bg-app-bg w-full rounded-t-2xl p-6 pb-safe shadow-2xl border-t border-white/60">
           <div class="flex justify-between items-center mb-5">
             <h3 class="font-serif font-bold text-xl text-app-textMain">
-               新增{{ newPlanItem.type === 'todo' ? '待辦事項' : newPlanItem.type === 'packing' ? '行李項目' : newPlanItem.type === 'wishlist' ? '想去清單' : '購物項目' }}
+               新增{{ newPlanItem.type === 'todo' ? '待辦事項' : newPlanItem.type === 'packing' ? '行李項目' : newPlanItem.type === 'wishlist' ? '想去清單' : '收款' }}
             </h3>
             <button @click="showPlanModal = false" class="text-gray-500 bg-white w-7 h-7 rounded-full flex items-center justify-center shadow-sm btn-press border border-gray-200"><i class="fas fa-times text-xs"></i></button>
           </div>
@@ -976,12 +999,12 @@
       <div v-if="detailExpense" class="absolute inset-0 bg-app-textMain/40 backdrop-blur-sm z-[3000] flex items-center justify-center p-5">
         <div class="bg-app-bg w-full rounded-2xl p-6 relative shadow-2xl border border-white/60">
           
-          <!-- 新增：編輯按鈕 -->
+          <!-- 編輯按鈕 -->
           <button @click="openExpenseModal(detailExpense); detailExpense = null" class="absolute top-4 right-14 text-app-primaryDark bg-white w-7 h-7 rounded-full flex items-center justify-center shadow-sm btn-press border border-gray-200">
             <i class="fas fa-pen text-xs"></i>
           </button>
           
-          <!-- 原本的：關閉按鈕 -->
+          <!-- 關閉按鈕 -->
           <button @click="detailExpense = null" class="absolute top-4 right-4 text-gray-500 bg-white w-7 h-7 rounded-full flex items-center justify-center shadow-sm btn-press border border-gray-200">
             <i class="fas fa-times text-xs"></i>
           </button>
@@ -1003,6 +1026,22 @@
                   <span class="text-xs font-bold text-gray-700">{{ getMember(currentTrip, pid).name }}</span>
                 </div>
                 <span class="text-sm font-serif font-bold text-app-textMain">{{ detailExpense.currency }} {{ detailExpense.payers[pid].toLocaleString() }}</span>
+              </div>
+            </div>
+            
+            <!-- 修改：各自分攤明細 (Consumers) -->
+            <div v-if="detailExpense.consumers && detailExpense.consumers.length > 0" class="mt-4 pt-4 border-t border-dashed border-gray-200">
+              <h4 class="text-[10px] text-gray-500 font-bold mb-3 tracking-wider uppercase text-center flex items-center justify-center gap-1">
+                 <i class="fas fa-users"></i> 各自分攤明細
+              </h4>
+              <div class="space-y-2">
+                <div v-for="cid in detailExpense.consumers" :key="'c'+cid" class="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                  <div class="flex items-center gap-2">
+                    <img :src="getMember(currentTrip, cid).avatar" class="w-6 h-6 rounded-full border border-gray-200 bg-white object-cover p-0.5">
+                    <span class="text-xs font-bold text-gray-700">{{ getMember(currentTrip, cid).name }}</span>
+                  </div>
+                  <span class="text-sm font-serif font-bold text-app-textMain">{{ detailExpense.currency }} {{ (getExpenseTotal(detailExpense) / (detailExpense.consumers.length || 1)).toLocaleString(undefined, {maximumFractionDigits: 1}) }}</span>
+                </div>
               </div>
             </div>
           
@@ -1200,6 +1239,23 @@
             showAvatarPicker.value = true;
         };
 
+        // 修改：讓任意成員的頭像與名字變更都能全域同步到該成員參與的所有行程
+        const syncMemberToAllTrips = async (memberId, newName, newAvatar) => {
+            const updatePromises = trips.value.map(async (t) => {
+                if(!t.members) return;
+                const m = t.members.find(x => x.id === memberId);
+                if (m) {
+                    let changed = false;
+                    if(newName && m.name !== newName) { m.name = newName; changed = true; }
+                    if(newAvatar && m.avatar !== newAvatar) { m.avatar = newAvatar; changed = true; }
+                    if (changed && !isRemoteUpdate) {
+                        await setDoc(doc(db, "trips", t.id), t);
+                    }
+                }
+            });
+            await Promise.all(updatePromises);
+        };
+
         const selectAvatar = (url) => {
             if (avatarTarget.value && avatarProp.value) {
                 avatarTarget.value[avatarProp.value] = url;
@@ -1209,7 +1265,7 @@
                         myProfile.avatar = m.avatar;
                         safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile));
                     }
-                    syncMyProfileToAllTrips();
+                    syncMemberToAllTrips(m.id, m.name, m.avatar); // 全域同步
                 }
             }
             showAvatarPicker.value = false;
@@ -1795,20 +1851,6 @@
             await setDoc(targetRef, targetTrip);
             goToTrip(targetTrip.id);
         };
-        
-        const syncMyProfileToAllTrips = () => {
-            trips.value.forEach(async (t) => {
-                if(!t.members) return;
-                const m = t.members.find(x => x.accountId === myProfile.accountId || x.id === myProfile.id);
-                if (m) {
-                    let changed = false;
-                    if(m.accountId !== myProfile.accountId) { m.accountId = myProfile.accountId; changed = true; }
-                    if(m.name !== myProfile.name) { m.name = myProfile.name; changed = true; }
-                    if(m.avatar !== myProfile.avatar) { m.avatar = myProfile.avatar; changed = true; }
-                    if (changed && !isRemoteUpdate) await setDoc(doc(db, "trips", t.id), t);
-                }
-            });
-        };
 
         const openProfileModal = () => { editingProfile.accountId = myProfile.accountId; editingProfile.name = myProfile.name; editingProfile.avatar = myProfile.avatar; showProfileModal.value = true; };
         
@@ -1823,10 +1865,9 @@
 
             myProfile.name = editingProfile.name.trim(); 
             myProfile.avatar = editingProfile.avatar; 
-            syncMyProfileToAllTrips(); 
+            syncMemberToAllTrips(myProfile.id, myProfile.name, myProfile.avatar); 
             safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile)); 
             
-            // 【新增】將修改的名字與頭像同步至資料庫的 users 集合
             if (/^\d{4}$/.test(myProfile.id)) {
                 await setDoc(doc(db, "users", myProfile.id), { 
                     id: myProfile.id, 
@@ -1850,7 +1891,7 @@
                 if (m.accountId === myProfile.accountId || m.id === myProfile.id) {
                     myProfile.name = m.name; safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile));
                 }
-                syncMyProfileToAllTrips();
+                syncMemberToAllTrips(m.id, m.name, m.avatar); // 全域同步
             }
         };
 
@@ -1965,7 +2006,6 @@
         const deleteExpense = (id) => { if(confirm('確定刪除此筆支出？')) currentTrip.value.expenses = currentTrip.value.expenses.filter(e => e.id !== id); swipeState.id = null; };
         
         const showExpenseModal = ref(false); const editingExpenseId = ref(null);
-        // ★ 加上 receiptUrl
         const newExpense = reactive({ desc: '', currency: 'TWD', category: '早餐', paymentMethod: 'cash', payerMode: 'single', singlePayerId: 1, singleAmount: null, multiPayersAmount: {}, splitMode: 'all', partialConsumers: [], note: '', receiptUrl: null });
         
         const convertedExpenseTWD = computed(() => {
@@ -1982,7 +2022,6 @@
             if (!file) return;
 
             isUploadingReceipt.value = true;
-            // ★ 極度壓縮：尺寸 600x600，品質 0.4 (超快秒傳，僅保留文字辨識度)
             compressImage(file, 600, 600, 0.4, async (compressedDataUrl) => {
                 try {
                     const filePath = `receipts/${myProfile.id}_${Date.now()}_${Math.floor(Math.random()*1000)}.jpg`;
@@ -2060,7 +2099,17 @@
 
         // ================= 5. Plan (Todo / Shopping / Wishlist) =================
         const activePlanType = ref('todo'); 
-        const filteredPlans = computed(() => currentTrip.value ? (currentTrip.value.plans || []).filter(p => p.type === activePlanType.value) : []);
+        
+        // 修改：過濾並將「收藏(星號)」項目置頂
+        const filteredPlans = computed(() => {
+          if (!currentTrip.value) return [];
+          let plans = (currentTrip.value.plans || []).filter(p => p.type === activePlanType.value);
+          return plans.sort((a, b) => {
+            if (a.isImportant && !b.isImportant) return -1;
+            if (!a.isImportant && b.isImportant) return 1;
+            return 0;
+          });
+        });
         
         const isTaskFullyDone = (task) => { return (task.checkedBy || []).length === (currentTrip.value.members || []).length; };
         const toggleTaskCheck = (task) => { if(!task.checkedBy) task.checkedBy = []; const idx = task.checkedBy.indexOf(myProfile.id); if (idx > -1) task.checkedBy.splice(idx, 1); else task.checkedBy.push(myProfile.id); };
