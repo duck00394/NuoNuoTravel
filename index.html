@@ -259,7 +259,7 @@
         <main class="flex-1 overflow-y-auto no-scrollbar relative z-10 px-5" style="padding-bottom: calc(6rem + env(safe-area-inset-bottom));" @touchstart="onGlobalTouchStart" @touchend="onGlobalTouchEnd">
           <transition name="fade" mode="out-in">
             <!-- Schedule -->
-            <div v-if="activeTab === 'schedule'" class="pb-5 pt-[60px]" key="schedule">
+            <div v-if="activeTab === 'schedule'" class="pb-5 pt-2" key="schedule">
               <div class="flex justify-between items-end mb-6">
                  <div>
                     <p class="text-[10px] text-white font-bold tracking-widest uppercase mb-1 drop-shadow-md">Trip Journal</p>
@@ -306,7 +306,7 @@
             </div>
 
             <!-- Bookings -->
-            <div v-else-if="activeTab === 'bookings'" class="pt-[90px] pb-5" key="bookings">
+            <div v-else-if="activeTab === 'bookings'" class="pt-2 pb-5" key="bookings">
               <h2 class="font-serif text-3xl font-bold text-app-textMain mb-1 tracking-wider drop-shadow-md">Bookings</h2>
               <p class="text-xs text-white mb-6 flex items-center justify-between drop-shadow">交通與住宿 <span class="bg-white/90 px-2 py-0.5 rounded border border-white/50 text-[9px] shadow-sm text-app-primaryDark">左滑刪除 / 右滑編輯 (需密碼)</span></p>
               <div v-if="!currentTrip.bookings || currentTrip.bookings.length === 0" class="text-center text-white py-12 bg-white/20 backdrop-blur-sm rounded-xl border border-dashed border-white/40 font-serif text-sm shadow-sm">無憑證紀錄</div>
@@ -335,7 +335,7 @@
             </div>
 
             <!-- Expense -->
-            <div v-else-if="activeTab === 'expense'" class="pt-[90px] pb-5 px-5" key="expense">
+            <div v-else-if="activeTab === 'expense'" class="pt-2 pb-5 px-5" key="expense">
               <h2 class="font-serif text-3xl font-bold text-app-textMain mb-1 tracking-wider drop-shadow-md">Expenses</h2>
               <p class="text-xs text-white mb-6 flex items-center justify-between drop-shadow">帳目與分帳紀錄 <span class="bg-white/90 px-2 py-0.5 rounded border border-white/50 text-[9px] shadow-sm text-app-primaryDark">左滑刪除 / 右滑編輯</span></p>
 
@@ -405,7 +405,7 @@
             </div>
 
             <!-- Journal -->
-            <div v-else-if="activeTab === 'journal'" class="pt-[90px] pb-5 px-5" key="journal">
+            <div v-else-if="activeTab === 'journal'" class="pt-2 pb-5 px-5" key="journal">
               <h2 class="font-serif text-3xl font-bold text-app-textMain mb-6 tracking-wider drop-shadow-md">Journal</h2>
               <div class="bg-white p-4 rounded-xl shadow-lg border border-white/60 mb-6">
                 <textarea v-model="newJournal" class="w-full bg-app-cardAlt rounded-lg p-3 text-sm border border-transparent focus:border-app-primaryDark resize-none h-24 font-medium text-app-textMain outline-none placeholder:text-gray-400 placeholder:font-serif" placeholder="寫下一些回憶..."></textarea>
@@ -425,7 +425,7 @@
             </div>
 
             <!-- Exchange -->
-            <div v-else-if="activeTab === 'exchange'" class="pt-[90px] pb-5 px-5 h-full flex flex-col overflow-y-auto" key="exchange">
+            <div v-else-if="activeTab === 'exchange'" class="pt-2 pb-5 px-5 h-full flex flex-col overflow-y-auto" key="exchange">
                <h2 class="font-serif text-3xl font-bold text-app-textMain mb-1 tracking-wider drop-shadow-md shrink-0">Exchange</h2>
                <p class="text-xs text-white mb-6 flex items-center justify-between drop-shadow shrink-0">即時匯率換算 
                   <span class="flex gap-2">
@@ -500,7 +500,7 @@
             </div>
 
             <!-- Plan -->
-            <div v-else-if="activeTab === 'plan'" class="pt-[90px] pb-5 px-5" key="plan">
+            <div v-else-if="activeTab === 'plan'" class="pt-2 pb-5 px-5" key="plan">
               <h2 class="font-serif text-3xl font-bold text-app-textMain mb-4 tracking-wider drop-shadow-md">Plan</h2>
               <div class="flex bg-white p-1 rounded-lg mb-6 overflow-x-auto no-scrollbar border border-white/60 shadow-md prevent-global-swipe">
                 <button v-for="type in ['todo', 'wishlist', 'packing', 'payment']" :key="type" @click="activePlanType = type; isSelectionMode = false" :class="['flex-none px-3.5 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap', activePlanType === type ? 'bg-app-primaryDark text-white' : 'text-gray-500 hover:bg-app-cardAlt']">
@@ -641,7 +641,7 @@
             <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id; showFabMenu = false" class="flex flex-col items-center justify-center w-full h-full transition-colors relative" :class="activeTab === tab.id ? 'text-app-primaryDark' : 'text-gray-400'">
               <div v-if="activeTab === tab.id" class="absolute top-0 w-6 h-0.5 bg-app-primaryDark rounded-b-full shadow-[0_0_8px_rgba(29,45,68,0.5)]"></div>
               <i :class="[tab.icon, 'text-lg mb-1 transition-transform', activeTab === tab.id ? 'scale-110 drop-shadow-sm' : '']"></i>
-              <span class="text-[8px] font-bold tracking-wider mt-0.5">{{ tab.name }}</span>
+              <span class="text-[11px] font-bold tracking-wider mt-1">{{ tab.name }}</span>
             </button>
           </div>
         </nav>
@@ -964,7 +964,7 @@
                <div class="w-px h-6 bg-gray-300"></div>
                <input v-model="newExpense.desc" type="text" placeholder="輸入相關資訊 (例如: 拉麵)" class="flex-1 bg-transparent text-sm font-bold outline-none text-app-textMain placeholder:text-gray-400 py-2 pr-2">
             </div>
-            <div><label class="text-[10px] text-gray-500 font-bold mb-1 block tracking-wider uppercase">誰付的錢？ (Payer)</label><div class="flex bg-app-cardAlt p-1 rounded-lg border border-transparent mb-2"><button @click="newExpense.payerMode = 'single'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.payerMode === 'single' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">單人支付</button><button @click="newExpense.payerMode = 'multi'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.payerMode === 'multi' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">多人合資</button></div><div v-if="newExpense.payerMode === 'single'" class="flex gap-2 items-center"><select v-model="newExpense.singlePayerId" class="p-2.5 bg-transparent border-b border-gray-300 w-1/3 font-bold text-sm outline-none text-app-textMain"><option class="bg-white" v-for="m in (currentTrip?.members || [])" :key="m.id" :value="m.id">{{ m.name }}</option></select><div class="flex-1 flex items-center border-b border-gray-300"><input v-model.number="newExpense.singleAmount" type="number" placeholder="輸入金額" class="w-full p-2.5 bg-transparent font-serif font-black text-xl outline-none text-app-textMain text-right placeholder:text-gray-400"></div></div><div v-if="newExpense.payerMode === 'multi'" class="space-y-2"><div v-for="m in (currentTrip?.members || [])" :key="m.id" class="flex items-center justify-between card-dashed pb-1 border-gray-200"><div class="flex items-center gap-2"><img :src="m.avatar" class="w-5 h-5 rounded-full object-cover border border-gray-200 bg-app-cardAlt"><span class="text-xs font-bold text-app-textMain">{{ m.name }}</span></div><div class="flex items-center"><input v-model.number="newExpense.multiPayersAmount[m.id]" type="number" placeholder="0" class="w-20 bg-transparent text-right font-serif font-bold text-sm outline-none border-b border-transparent focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400"></div></div></div></div><div><label class="text-[10px] text-gray-500 font-bold mb-1 block tracking-wider uppercase mt-4">分攤方式 (Split)</label><div class="flex bg-app-cardAlt p-1 rounded-lg border border-transparent mb-2"><button @click="newExpense.splitMode = 'all'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'all' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">全部分攤</button><button @click="newExpense.splitMode = 'partial'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'partial' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">部分分攤</button><button @click="newExpense.splitMode = 'none'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'none' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">不分攤</button></div><div v-if="newExpense.splitMode === 'partial'" class="flex flex-wrap gap-2 mt-2 p-3 bg-app-cardAlt rounded-xl border border-transparent"><label v-for="m in (currentTrip?.members || [])" :key="m.id" class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200 cursor-pointer shadow-sm active:scale-95 transition"><input type="checkbox" :value="String(m.id)" v-model="newExpense.partialConsumers" class="accent-app-primaryDark w-3.5 h-3.5"><span class="text-xs font-bold text-app-textMain">{{ m.name }}</span></label></div><div v-if="newExpense.splitMode === 'none'" class="text-[10px] text-gray-500 mt-1 ml-1 font-bold"><i class="fas fa-info-circle mr-1 text-app-primaryDark"></i> 此筆花費將完全由付款人自行吸收，不向他人請款。</div></div>
+            <div><label class="text-[10px] text-gray-500 font-bold mb-1 block tracking-wider uppercase">誰付的錢？ (Payer)</label><div class="flex bg-app-cardAlt p-1 rounded-lg border border-transparent mb-2"><button @click="newExpense.payerMode = 'single'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.payerMode === 'single' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">單人支付</button><button @click="newExpense.payerMode = 'multi'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.payerMode === 'multi' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">多人合資</button></div><div v-if="newExpense.payerMode === 'single'" class="flex gap-2 items-center"><select v-model="newExpense.singlePayerId" class="p-2.5 bg-transparent border-b border-gray-300 w-1/3 font-bold text-sm outline-none text-app-textMain"><option class="bg-white" v-for="m in (currentTrip?.members || [])" :key="m.id" :value="m.id">{{ m.name }}</option></select><div class="flex-1 flex items-center border-b border-gray-300"><input v-model.number="newExpense.singleAmount" type="number" placeholder="輸入金額" class="w-full p-2.5 bg-transparent font-serif font-black text-xl outline-none text-app-textMain text-right placeholder:text-gray-400"></div></div><div v-if="newExpense.payerMode === 'multi'" class="space-y-2"><div v-for="m in (currentTrip?.members || [])" :key="m.id" class="flex items-center justify-between card-dashed pb-1 border-gray-200"><div class="flex items-center gap-2"><img :src="m.avatar" class="w-5 h-5 rounded-full object-cover border border-gray-200 bg-app-cardAlt"><span class="text-xs font-bold text-app-textMain">{{ m.name }}</span></div><div class="flex items-center"><input v-model.number="newExpense.multiPayersAmount[m.id]" type="number" placeholder="0" class="w-20 bg-transparent text-right font-serif font-bold text-sm outline-none border-b border-transparent focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400"></div></div></div></div><div><label class="text-[10px] text-gray-500 font-bold mb-1 block tracking-wider uppercase mt-4">分攤方式 (Split)</label><div class="flex bg-app-cardAlt p-1 rounded-lg border border-transparent mb-2"><button @click="newExpense.splitMode = 'all'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'all' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">全部分攤</button><button @click="newExpense.splitMode = 'partial'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'partial' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">部分分攤</button><button @click="newExpense.splitMode = 'none'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'none' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">不分攤</button></div><div v-if="newExpense.splitMode === 'partial'" class="flex flex-wrap gap-2 mt-2 p-3 bg-app-cardAlt rounded-xl border border-transparent"><label v-for="m in (currentTrip?.members || [])" :key="m.id" class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200 cursor-pointer shadow-sm active:scale-95 transition"><input type="checkbox" :value="m.id" v-model="newExpense.partialConsumers" class="accent-app-primaryDark w-3.5 h-3.5"><span class="text-xs font-bold text-app-textMain">{{ m.name }}</span></label></div><div v-if="newExpense.splitMode === 'none'" class="text-[10px] text-gray-500 mt-1 ml-1 font-bold"><i class="fas fa-info-circle mr-1 text-app-primaryDark"></i> 此筆花費將完全由付款人自行吸收，不向他人請款。</div></div>
             
             <div class="flex gap-3 mt-4">
               <div class="w-1/2">
@@ -1080,7 +1080,7 @@
                  <i class="fas fa-users"></i> 各自分攤明細
               </h4>
               <div class="space-y-2">
-                <div v-for="cid in (detailExpense.splitMode === 'all' ? currentTrip.members.map(m=>String(m.id)) : detailExpense.consumers)" :key="'c'+cid" class="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                <div v-for="cid in (detailExpense.splitMode === 'all' ? currentTrip.members.map(m=>String(m.id)) : detailExpense.consumers.map(String))" :key="'c'+cid" class="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                   <div class="flex items-center gap-2">
                     <img :src="getMember(currentTrip, cid).avatar" class="w-6 h-6 rounded-full border border-gray-200 bg-white object-cover p-0.5">
                     <span class="text-xs font-bold text-gray-700">{{ getMember(currentTrip, cid).name }}</span>
@@ -1260,7 +1260,7 @@
         const syncMemberToAllTrips = async (memberId, newName, newAvatar) => {
             const updatePromises = trips.value.map(async (t) => {
                 if(!t.members) return;
-                const m = t.members.find(x => String(x.id) === String(memberId));
+                const m = t.members.find(x => x.id === memberId);
                 if (m) {
                     let changed = false;
                     if(newName && m.name !== newName) { m.name = newName; changed = true; }
@@ -1586,7 +1586,6 @@
             }
         };
         
-        // ★ 修改：統一使用強制字串比對，徹底解決顯示預設成員的 BUG
         const getMember = (trip, id) => {
             if(!trip || !trip.members) return myProfile;
             return trip.members.find(m => String(m.id) === String(id)) || trip.members[0] || myProfile;
@@ -1709,7 +1708,7 @@
             hasCheckedUrl.value = true;
         };
 
-        const loadDefaultTrip = async () => { /* 已移除範本按鈕功能 */ };
+        const loadDefaultTrip = async () => { /* 功能已移除 */ };
 
         onMounted(() => { fetchRates(); });
 
@@ -1800,7 +1799,7 @@
             if (!targetTrip.members) targetTrip.members = [];
             if (!targetTrip.memberIds) targetTrip.memberIds = [];
 
-            const nameExists = targetTrip.members.some(m => m.name === joinProfile.name.trim() && String(m.id) !== String(myProfile.id));
+            const nameExists = targetTrip.members.some(m => m.name === joinProfile.name.trim() && m.id !== myProfile.id);
             if (nameExists) return alert("此暱稱在行程中已被其他成員使用，請換一個避免混淆！");
 
             myProfile.name = joinProfile.name.trim();
@@ -1827,7 +1826,7 @@
             if(!editingProfile.name.trim()) return alert("名稱不能為空");
             
             if (currentTrip.value) {
-                const nameExists = currentTrip.value.members.some(m => m.name === editingProfile.name.trim() && String(m.id) !== String(myProfile.id));
+                const nameExists = currentTrip.value.members.some(m => m.name === editingProfile.name.trim() && m.id !== myProfile.id);
                 if (nameExists) return alert("此名稱在當前行程中已被使用，請換一個暱稱！");
             }
 
@@ -1852,14 +1851,14 @@
         const editMemberName = (m) => {
             const newName = prompt('修改成員名稱', m.name);
             if (newName && newName.trim() !== '') {
-                const nameExists = currentTrip.value.members.some(other => other.name === newName.trim() && String(other.id) !== String(m.id));
+                const nameExists = currentTrip.value.members.some(other => other.name === newName.trim() && other.id !== m.id);
                 if (nameExists) return alert("此名稱已被其他成員使用，不可重複！");
 
                 m.name = newName.trim();
-                if (m.accountId === myProfile.accountId || String(m.id) === String(myProfile.id)) {
+                if (m.accountId === myProfile.accountId || m.id === myProfile.id) {
                     myProfile.name = m.name; safeSetLocal('nuonuo_profile_v4', JSON.stringify(myProfile));
                 }
-                syncMemberToAllTrips(m.id, m.name, m.avatar);
+                syncMemberToAllTrips(m.id, m.name, m.avatar); // 全域同步
             }
         };
 
@@ -1883,7 +1882,7 @@
         const syncToGoogleMaps = () => {
           const locations = [];
           if (activeDay.value === 'highlights') { (currentTrip.value.days || []).forEach(d => { (d.timeline || []).forEach(t => { if (t.location) locations.push(t.location); }); }); } 
-          else { const dayTimeline = currentTrip.value.days?.[activeDay.value]?.timeline || []; dayTimeline.forEach(t => { if (t.location) locationspush(t.location); }); }
+          else { const dayTimeline = currentTrip.value.days?.[activeDay.value]?.timeline || []; dayTimeline.forEach(t => { if (t.location) locations.push(t.location); }); }
           if (locations.length === 0) return alert('目前畫面中沒有行程地點喔！');
           let url = '';
           if (locations.length === 1) { url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent('My Location')}&destination=${encodeURIComponent(locations[0])}`; } 
@@ -1952,9 +1951,7 @@
         // ================= 3. Expense =================
         const getExpRate = (e) => e.isCustomRate && e.exchangeRate ? e.exchangeRate : (rates[e.currency] || 1);
         const getExpenseTotal = (exp) => Object.values(exp.payers).reduce((a, b) => a + (b || 0), 0);
-        // ★ 修改：修正 parseInt 錯誤，統一轉回純 String Key 陣列
         const getPayersList = (exp) => Object.keys(exp.payers).filter(id => exp.payers[id] > 0);
-        
         const totalExpenseTWD = computed(() => { 
             if(!currentTrip.value) return 0; 
             return Math.round((currentTrip.value.expenses || []).reduce((s, e) => s + (getExpenseTotal(e) * getExpRate(e)), 0)); 
@@ -1962,50 +1959,51 @@
         
         const settlements = computed(() => {
           if(!currentTrip.value) return [];
-          let bal = {}; 
-          // 強制將成員 id 轉為字串
-          (currentTrip.value.members || []).forEach(m => bal[String(m.id)] = 0);
+          let bal = new Map(); 
+          (currentTrip.value.members || []).forEach(m => bal.set(String(m.id), 0));
           
           (currentTrip.value.expenses || []).forEach(e => { 
             const rate = getExpRate(e);
             const totalTWD = getExpenseTotal(e) * rate; 
             
-            // 強制將消費名單的 ID 也轉為字串
             let actualConsumers = e.splitMode === 'all' ? (currentTrip.value.members || []).map(m=>String(m.id)) : (e.consumers || []).map(String);
             const perPersonTWD = totalTWD / (actualConsumers.length || 1); 
             
-            // 計算付款人 (加錢)
             for (let pid in e.payers) { 
-                if(bal[String(pid)] === undefined) bal[String(pid)] = 0; 
-                bal[String(pid)] += (e.payers[pid] * rate); 
+                let strPid = String(pid);
+                if(!bal.has(strPid)) bal.set(strPid, 0); 
+                bal.set(strPid, bal.get(strPid) + (e.payers[pid] * rate)); 
             }
-            // 計算分攤人 (扣錢)
             actualConsumers.forEach(cid => { 
-                if(bal[String(cid)] === undefined) bal[String(cid)] = 0; 
-                bal[String(cid)] -= perPersonTWD; 
+                let strCid = String(cid);
+                if(!bal.has(strCid)) bal.set(strCid, 0); 
+                bal.set(strCid, bal.get(strCid) - perPersonTWD); 
             }); 
           });
           
-          // ★ 修改：不再使用 parseInt(id)，直接使用字串 ID 傳遞
           let debtors = [], creditors = []; 
-          for (let id in bal) { 
-              if (bal[id] < -1) debtors.push({ id: String(id), amount: -bal[id] }); 
-              else if (bal[id] > 1) creditors.push({ id: String(id), amount: bal[id] }); 
+          for (let [id, amount] of bal.entries()) { 
+            if (amount <= -1) debtors.push({ id: id, amount: -amount }); 
+            else if (amount >= 1) creditors.push({ id: id, amount: amount }); 
           }
           
-          let transactions = []; debtors.sort((a, b) => b.amount - a.amount); creditors.sort((a, b) => b.amount - a.amount);
+          let transactions = []; 
+          debtors.sort((a, b) => b.amount - a.amount); 
+          creditors.sort((a, b) => b.amount - a.amount);
+          
           let i = 0, j = 0; 
           while (i < debtors.length && j < creditors.length) { 
-              let amount = Math.min(debtors[i].amount, creditors[j].amount); 
-              transactions.push({ from: debtors[i].id, to: creditors[j].id, amount: amount }); 
-              debtors[i].amount -= amount; creditors[j].amount -= amount; 
-              if (debtors[i].amount < 1) i++; 
-              if (creditors[j].amount < 1) j++; 
+            let amount = Math.min(debtors[i].amount, creditors[j].amount); 
+            transactions.push({ from: debtors[i].id, to: creditors[j].id, amount: amount }); 
+            debtors[i].amount -= amount; 
+            creditors[j].amount -= amount; 
+            if (debtors[i].amount < 1) i++; 
+            if (creditors[j].amount < 1) j++; 
           }
           return transactions;
         });
-        
-        const shareBill = () => { let text = "【趟旅費結算】\n"; settlements.value.forEach(s => text += `${getMember(currentTrip.value, s.from).name} 需轉給 ${getMember(currentTrip.value, s.to).name} NT$ ${Math.round(s.amount)}\n`); alert("已複製！\n\n" + text); };
+
+        const shareBill = () => { let text = "【一趟旅費結算】\n"; settlements.value.forEach(s => text += `${getMember(currentTrip.value, s.from).name} 需轉給 ${getMember(currentTrip.value, s.to).name} NT$ ${Math.round(s.amount)}\n`); alert("已複製！\n\n" + text); };
         
         const detailExpense = ref(null); const openExpenseDetail = (exp) => { if(swipeState.currentX === 0) detailExpense.value = exp; };
         const deleteExpense = (id) => { if(confirm('確定刪除此筆支出？')) currentTrip.value.expenses = currentTrip.value.expenses.filter(e => e.id !== id); swipeState.id = null; };
@@ -2048,13 +2046,13 @@
         const openExpenseModal = (exp) => { 
           if(exp){ 
             editingExpenseId.value = exp.id; 
-            const payerIds = Object.keys(exp.payers);
+            const payerIds = Object.keys(exp.payers); 
             const isSinglePayer = payerIds.length === 1;
             
             let splitModeCalculated = 'all';
             const allMemberIdsStr = (currentTrip.value.members || []).map(m => String(m.id)).sort().join(',');
             const consumerIdsStr = [...(exp.consumers || [])].map(String).sort().join(',');
-            const payerIdsStr = [...payerIds].map(String).sort().join(',');
+            const payerIdsStr = [...payerIds].sort().join(',');
             
             if (exp.splitMode) {
                 splitModeCalculated = exp.splitMode;
@@ -2068,7 +2066,7 @@
                 desc: exp.desc, currency: exp.currency, category: exp.category || '其他', paymentMethod: exp.paymentMethod, payerMode: isSinglePayer ? 'single' : 'multi', 
                 note: exp.note || '', receiptUrl: exp.receiptUrl || null,
                 isCustomRate: exp.isCustomRate || false, customRate: exp.exchangeRate || null,
-                splitMode: splitModeCalculated, partialConsumers: [...(exp.consumers || [])].map(String)
+                splitMode: splitModeCalculated, partialConsumers: [...(exp.consumers || [])]
             }); 
             
             if (isSinglePayer) { newExpense.singlePayerId = payerIds[0]; newExpense.singleAmount = exp.payers[newExpense.singlePayerId]; } 
@@ -2076,7 +2074,7 @@
           }
           else { 
             editingExpenseId.value = null; 
-            Object.assign(newExpense, { desc: '', currency: currentTrip.value?.defaultCurrency || 'JPY', category: '早餐', paymentMethod: 'cash', payerMode: 'single', singlePayerId: myProfile.id, singleAmount: null, multiPayersAmount: {}, splitMode: 'all', partialConsumers: (currentTrip.value.members || []).map(m=>String(m.id)), note: '', receiptUrl: null, isCustomRate: false, customRate: null }); 
+            Object.assign(newExpense, { desc: '', currency: currentTrip.value?.defaultCurrency || 'JPY', category: '早餐', paymentMethod: 'cash', payerMode: 'single', singlePayerId: myProfile.id, singleAmount: null, multiPayersAmount: {}, splitMode: 'all', partialConsumers: (currentTrip.value.members || []).map(m=>m.id), note: '', receiptUrl: null, isCustomRate: false, customRate: null }); 
             (currentTrip.value.members || []).forEach(m => newExpense.multiPayersAmount[m.id] = null); 
           }
           swipeState.id = null; showExpenseModal.value = true; 
@@ -2090,16 +2088,15 @@
           let finalPayers = {}; let totalAmount = 0;
           if (newExpense.payerMode === 'single') { 
             if (!newExpense.singleAmount) return alert('請填寫金額'); 
-            finalPayers[String(newExpense.singlePayerId)] = newExpense.singleAmount; totalAmount = newExpense.singleAmount;
+            finalPayers[newExpense.singlePayerId] = newExpense.singleAmount; totalAmount = newExpense.singleAmount;
           } else { 
-            for (let id in newExpense.multiPayersAmount) { let amt = newExpense.multiPayersAmount[id] || 0; if (amt > 0) { finalPayers[String(id)] = amt; totalAmount += amt; } } 
+            for (let id in newExpense.multiPayersAmount) { let amt = newExpense.multiPayersAmount[id] || 0; if (amt > 0) { finalPayers[id] = amt; totalAmount += amt; } } 
             if (totalAmount === 0) return alert('請填寫付款金額'); 
           }
           
-          // ★ 修改：統一寫入 String，並且修復 Number() 轉型產生的 NaN 問題
           let finalConsumers = [];
-          if (newExpense.splitMode === 'all') { finalConsumers = (currentTrip.value.members || []).map(m => String(m.id)); } 
-          else if (newExpense.splitMode === 'partial') { if (newExpense.partialConsumers.length === 0) return alert('請至少勾選一位分攤成員'); finalConsumers = [...newExpense.partialConsumers].map(String); } 
+          if (newExpense.splitMode === 'all') { finalConsumers = (currentTrip.value.members || []).map(m => m.id); } 
+          else if (newExpense.splitMode === 'partial') { if (newExpense.partialConsumers.length === 0) return alert('請至少勾選一位分攤成員'); finalConsumers = [...newExpense.partialConsumers]; } 
           else if (newExpense.splitMode === 'none') { finalConsumers = Object.keys(finalPayers); }
 
           const expData = { 
@@ -2186,6 +2183,7 @@
         const deletePayment = (id) => { if(confirm('確定刪除此收款方式？')) currentTrip.value.payments = (currentTrip.value.payments || []).filter(p => p.id !== id); swipeState.id = null; };
         const savePayment = () => { if (!newPayment.bankCode || !newPayment.account) return alert('請填寫代號與帳號'); const pmData = { ...newPayment, id: editingPaymentId.value || 'pm_'+Date.now() }; if (!currentTrip.value.payments) currentTrip.value.payments = []; if (editingPaymentId.value) { const idx = currentTrip.value.payments.findIndex(p => p.id === editingPaymentId.value); currentTrip.value.payments[idx] = pmData; } else currentTrip.value.payments.push(pmData); showPaymentModal.value = false; };
 
+        // 暴露函式與變數給模板
         return {
           appPage, homeTab, activeTab, activeDay, MY_USER_ID: myProfile.id, tabs, trips, filteredTrips, currentTrip, goToTrip, handleTripClick, getMember,
           myProfile, showProfileModal, editingProfile, openProfileModal, saveProfile, handleImageUpload, editMemberName,
