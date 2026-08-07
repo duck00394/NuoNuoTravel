@@ -329,6 +329,36 @@
                     <div class="w-full h-12 bg-app-cardAlt flex items-center justify-center text-gray-400 border-b border-gray-100" v-else><i class="fas fa-hotel text-lg"></i></div>
                     <div class="p-4"><div class="flex justify-between items-start"><h3 class="font-bold text-app-textMain text-base">{{ bk.title }}</h3><a v-if="bk.mapLink" :href="getValidLink(bk.mapLink)" target="_blank" class="text-[9px] bg-app-cardAlt border border-gray-200 text-gray-600 px-2 py-1 rounded shadow-sm font-bold"><i class="fas fa-map-marker-alt text-app-primaryDark mr-1"></i>Map</a></div><p class="text-xs text-app-textMuted mt-2 font-serif"><i class="fas fa-map-pin mr-1"></i>{{ bk.address }}</p><div class="card-dashed"></div><div class="grid grid-cols-2 gap-2 text-xs"><div><span class="text-app-primaryDark block text-[9px] uppercase tracking-widest mb-0.5">Check-in</span><span class="text-app-textMain font-bold">{{ bk.checkIn || '-' }}</span></div><div class="text-right"><span class="text-app-primaryDark block text-[9px] uppercase tracking-widest mb-0.5">Check-out</span><span class="text-app-textMain font-bold">{{ bk.checkOut || '-' }}</span></div></div></div>
                   </div>
+                  <!-- 棒球球賽憑證卡片 -->
+                  <div v-else-if="bk.type === 'baseball'" class="bg-white rounded-xl shadow-lg overflow-hidden border border-white/60">
+                    <div class="bg-app-primaryDark p-3 text-white flex justify-between items-center text-xs">
+                        <div class="font-bold tracking-wide"><i class="fas fa-baseball-ball mr-2 text-white/70"></i>{{ bk.title }} <span v-if="bk.themeDay" class="ml-1 text-[10px] font-normal opacity-80">({{ bk.themeDay }})</span></div>
+                        <div class="text-[10px] text-white/90 font-serif border border-white/40 px-1.5 py-0.5 rounded">{{ bk.amount ? '$' + bk.amount : 'Seat: ' + (bk.seat || '未指定') }}</div>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="text-center w-[40%]"><span class="text-[9px] text-gray-500 block mb-0.5">客隊</span><span class="font-bold text-app-textMain text-sm">{{ bk.awayTeam }}</span></div>
+                            <div class="text-[10px] text-gray-400 font-bold text-center w-[20%]">VS<br><span class="bg-app-cardAlt px-1.5 py-0.5 rounded border border-gray-200 mt-1 inline-block text-[8px] whitespace-nowrap">@{{ bk.stadium }}</span></div>
+                            <div class="text-center w-[40%]"><span class="text-[9px] text-gray-500 block mb-0.5">主隊</span><span class="font-bold text-app-primaryDark text-sm">{{ bk.homeTeam }}</span></div>
+                        </div>
+                        <div class="text-center text-xs font-bold text-app-textMain mb-3 bg-gray-50 py-1.5 rounded border border-gray-100 shadow-sm">座位: {{ bk.seat || '未指定' }}</div>
+                        
+                        <!-- 球賽照片顯示區 (最多4張) -->
+                        <div v-if="bk.baseballPhotos && bk.baseballPhotos.length > 0" class="flex gap-2 overflow-x-auto no-scrollbar mb-3 pb-1 prevent-global-swipe">
+                            <img v-for="(img, idx) in bk.baseballPhotos" :key="idx" :src="img" class="w-16 h-16 object-cover rounded-lg shadow-sm border border-gray-200 shrink-0" @click.stop="viewQrCode = img">
+                        </div>
+                        
+                        <!-- 已使用標記按鈕 -->
+                        <div class="border-t border-dashed border-gray-200 pt-3">
+                            <div v-if="bk.usedBy" class="text-xs text-app-textMuted font-bold flex items-center justify-center bg-gray-100 py-2 rounded-lg border border-gray-200 shadow-inner">
+                                <i class="fas fa-check-circle text-green-500 mr-1.5 text-sm"></i> 已由 {{ bk.usedBy }} 使用
+                            </div>
+                            <button v-else @click.stop="markAsUsed(bk)" class="text-xs text-white bg-[#0D1321] hover:bg-app-primaryDark py-2 rounded-lg font-bold shadow-md btn-press w-full tracking-widest flex items-center justify-center transition-colors">
+                                <i class="fas fa-qrcode mr-1.5"></i> 點擊使用 (避免重複)
+                            </button>
+                        </div>
+                    </div>
+                  </div>
                   <div v-else class="bg-white rounded-xl shadow-lg p-4 border border-white/60 flex items-center gap-4"><div class="w-10 h-10 bg-app-cardAlt text-app-primaryDark rounded-lg flex items-center justify-center text-lg"><i :class="bk.type === 'car' ? 'fas fa-car' : 'fas fa-ticket-alt'"></i></div><div class="flex-1"><h3 class="font-bold text-app-textMain text-sm">{{ bk.title }}</h3><p class="text-[10px] text-app-textMuted mt-1 line-clamp-2 leading-relaxed">{{ bk.info }}</p></div></div>
                 </div>
               </div>
@@ -944,7 +974,103 @@
       </div>
     </transition>
     
-    <transition name="slide-up"><div v-if="showBookingModal" class="absolute inset-0 bg-app-textMain/40 backdrop-blur-sm z-[3000] flex items-end justify-center overflow-hidden"><div class="bg-app-bg w-full h-[85vh] rounded-t-2xl p-6 pb-safe overflow-y-auto flex flex-col border-t border-white/60"><div class="flex justify-between items-center mb-5 shrink-0"><h3 class="font-serif font-bold text-xl text-app-textMain">{{ editingBookingId ? '編輯憑證' : '新增憑證' }}</h3><button @click="showBookingModal = false" class="text-gray-500 bg-white w-7 h-7 rounded-full flex items-center justify-center shadow-sm btn-press border border-gray-200"><i class="fas fa-times text-xs"></i></button></div><div class="space-y-4 flex-1 bg-white p-5 rounded-xl shadow-lg border border-white/60"><div class="mb-2 bg-app-cardAlt p-3 rounded-lg border border-transparent flex items-center justify-between"><div class="flex items-center"><i class="fas fa-camera text-app-primaryDark mr-2"></i><span class="text-xs font-bold text-app-textMain">圖片辨識</span></div><label class="bg-white text-gray-600 border border-gray-200 px-3 py-1 rounded text-[10px] font-bold cursor-pointer btn-press shadow-sm">上傳截圖<input type="file" class="hidden" @change="autoFillBooking"></label></div><div><label class="text-[9px] text-gray-500 font-bold block mb-1 uppercase tracking-wider">類型</label><select v-model="newBooking.type" class="w-full p-2.5 bg-app-cardAlt border border-transparent rounded-lg font-bold text-sm text-app-textMain outline-none focus:border-app-primaryDark"><option value="flight">航班機票</option><option value="train">車票(高/台鐵)</option><option value="hotel">住宿飯店</option><option value="car">租車</option><option value="other">其他</option></select></div><div><label class="text-[9px] text-gray-500 font-bold block mb-1 uppercase tracking-wider">標題</label><input v-model="newBooking.title" type="text" placeholder="標題" class="w-full p-2.5 bg-transparent border-b border-gray-300 font-bold text-app-textMain outline-none focus:border-app-primaryDark placeholder:text-gray-400"></div><div v-if="newBooking.type === 'flight'" class="space-y-3"><input v-model="newBooking.code" type="text" placeholder="訂位代號" class="w-full p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500"><div class="flex gap-2"><input v-model="newBooking.loc1" type="text" placeholder="出發地" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.time1" type="text" placeholder="出發時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold font-serif outline-none text-app-textMain placeholder:text-gray-500"></div><div class="flex gap-2"><input v-model="newBooking.loc2" type="text" placeholder="目的地" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.time2" type="text" placeholder="抵達時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold font-serif outline-none text-app-textMain placeholder:text-gray-500"></div></div><div v-if="newBooking.type === 'train'" class="space-y-3"><select v-model="newBooking.trainType" class="w-full p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain"><option value="HSR">台灣高鐵</option><option value="TRA">台灣鐵路</option></select><div class="flex gap-2"><input v-model="newBooking.trainNo" type="text" placeholder="車次" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.seat" type="text" placeholder="座位(選填)" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"></div><div class="flex gap-2"><input v-model="newBooking.loc1" type="text" placeholder="出發站" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.time1" type="text" placeholder="出發時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold font-serif outline-none text-app-textMain placeholder:text-gray-500"></div><div class="flex gap-2"><input v-model="newBooking.loc2" type="text" placeholder="抵達站" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.time2" type="text" placeholder="抵達時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold font-serif outline-none text-app-textMain placeholder:text-gray-500"></div></div><div v-if="newBooking.type === 'hotel'" class="space-y-3"><input v-model="newBooking.address" type="text" placeholder="飯店地址" class="w-full p-2.5 bg-transparent border-b border-gray-300 text-sm font-bold outline-none focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400"><input v-model="newBooking.mapLink" type="text" placeholder="地圖連結 URL" class="w-full p-2.5 bg-transparent border-b border-gray-300 text-sm outline-none focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400"><div class="flex gap-2"><input v-model="newBooking.checkIn" type="text" placeholder="最早入住" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.latestCheckIn" type="text" placeholder="最晚入住" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500"></div><div class="flex gap-2"><input v-model="newBooking.checkOut" type="text" placeholder="退房時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.amount" type="text" placeholder="總金額" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500"></div><div class="bg-app-cardAlt p-3 rounded-lg border border-transparent"><label class="text-[10px] text-gray-500 font-bold block mb-1">上傳圖片</label><input type="file" accept="image/*" @change="e => handleImageUpload(e, newBooking, 'image')" class="text-xs w-full text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-white file:text-app-textMain file:border file:border-gray-200"></div></div><div v-if="newBooking.type === 'car' || newBooking.type === 'other'"><textarea v-model="newBooking.info" placeholder="備註..." class="w-full p-3 bg-app-cardAlt border border-transparent rounded-lg text-sm font-medium h-24 resize-none outline-none focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400"></textarea></div></div><button @click="saveBooking" class="w-full bg-app-primaryDark text-white py-3.5 rounded-xl font-bold mt-4 btn-press text-sm shrink-0 tracking-widest shadow-md">儲存</button></div></div></transition>
+    <transition name="slide-up">
+      <div v-if="showBookingModal" class="absolute inset-0 bg-app-textMain/40 backdrop-blur-sm z-[3000] flex items-end justify-center overflow-hidden">
+        <div class="bg-app-bg w-full h-[85vh] rounded-t-2xl p-6 pb-safe overflow-y-auto flex flex-col border-t border-white/60">
+          <div class="flex justify-between items-center mb-5 shrink-0">
+            <h3 class="font-serif font-bold text-xl text-app-textMain">{{ editingBookingId ? '編輯憑證' : '新增憑證' }}</h3>
+            <button @click="showBookingModal = false" class="text-gray-500 bg-white w-7 h-7 rounded-full flex items-center justify-center shadow-sm btn-press border border-gray-200"><i class="fas fa-times text-xs"></i></button>
+          </div>
+          <div class="space-y-4 flex-1 bg-white p-5 rounded-xl shadow-lg border border-white/60">
+            <div class="mb-2 bg-app-cardAlt p-3 rounded-lg border border-transparent flex items-center justify-between">
+              <div class="flex items-center"><i class="fas fa-camera text-app-primaryDark mr-2"></i><span class="text-xs font-bold text-app-textMain">圖片辨識</span></div>
+              <label class="bg-white text-gray-600 border border-gray-200 px-3 py-1 rounded text-[10px] font-bold cursor-pointer btn-press shadow-sm">上傳截圖<input type="file" class="hidden" @change="autoFillBooking"></label>
+            </div>
+            <div>
+              <label class="text-[9px] text-gray-500 font-bold block mb-1 uppercase tracking-wider">類型</label>
+              <select v-model="newBooking.type" class="w-full p-2.5 bg-app-cardAlt border border-transparent rounded-lg font-bold text-sm text-app-textMain outline-none focus:border-app-primaryDark">
+                <option value="flight">航班機票</option>
+                <option value="train">車票(高/台鐵)</option>
+                <option value="hotel">住宿飯店</option>
+                <option value="car">租車</option>
+                <option value="baseball">球賽(棒球)</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[9px] text-gray-500 font-bold block mb-1 uppercase tracking-wider">標題</label>
+              <input v-model="newBooking.title" type="text" placeholder="標題" class="w-full p-2.5 bg-transparent border-b border-gray-300 font-bold text-app-textMain outline-none focus:border-app-primaryDark placeholder:text-gray-400">
+            </div>
+            
+            <div v-if="newBooking.type === 'flight'" class="space-y-3">
+              <input v-model="newBooking.code" type="text" placeholder="訂位代號" class="w-full p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500">
+              <div class="flex gap-2">
+                <input v-model="newBooking.loc1" type="text" placeholder="出發地" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500">
+                <input v-model="newBooking.time1" type="text" placeholder="出發時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold font-serif outline-none text-app-textMain placeholder:text-gray-500">
+              </div>
+              <div class="flex gap-2">
+                <input v-model="newBooking.loc2" type="text" placeholder="目的地" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500">
+                <input v-model="newBooking.time2" type="text" placeholder="抵達時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold font-serif outline-none text-app-textMain placeholder:text-gray-500">
+              </div>
+            </div>
+            
+            <div v-if="newBooking.type === 'train'" class="space-y-3">
+              <select v-model="newBooking.trainType" class="w-full p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain"><option value="HSR">台灣高鐵</option><option value="TRA">台灣鐵路</option></select>
+              <div class="flex gap-2"><input v-model="newBooking.trainNo" type="text" placeholder="車次" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.seat" type="text" placeholder="座位(選填)" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"></div>
+              <div class="flex gap-2"><input v-model="newBooking.loc1" type="text" placeholder="出發站" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.time1" type="text" placeholder="出發時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold font-serif outline-none text-app-textMain placeholder:text-gray-500"></div>
+              <div class="flex gap-2"><input v-model="newBooking.loc2" type="text" placeholder="抵達站" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.time2" type="text" placeholder="抵達時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold font-serif outline-none text-app-textMain placeholder:text-gray-500"></div>
+            </div>
+            
+            <div v-if="newBooking.type === 'hotel'" class="space-y-3">
+              <input v-model="newBooking.address" type="text" placeholder="飯店地址" class="w-full p-2.5 bg-transparent border-b border-gray-300 text-sm font-bold outline-none focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400">
+              <input v-model="newBooking.mapLink" type="text" placeholder="地圖連結 URL" class="w-full p-2.5 bg-transparent border-b border-gray-300 text-sm outline-none focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400">
+              <div class="flex gap-2"><input v-model="newBooking.checkIn" type="text" placeholder="最早入住" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.latestCheckIn" type="text" placeholder="最晚入住" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500"></div>
+              <div class="flex gap-2"><input v-model="newBooking.checkOut" type="text" placeholder="退房時間" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500"><input v-model="newBooking.amount" type="text" placeholder="總金額" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-serif outline-none text-app-textMain placeholder:text-gray-500"></div>
+              <div class="bg-app-cardAlt p-3 rounded-lg border border-transparent"><label class="text-[10px] text-gray-500 font-bold block mb-1">上傳圖片</label><input type="file" accept="image/*" @change="e => handleImageUpload(e, newBooking, 'image')" class="text-xs w-full text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-white file:text-app-textMain file:border file:border-gray-200"></div>
+            </div>
+
+            <!-- 球賽功能編輯區塊 -->
+            <div v-if="newBooking.type === 'baseball'" class="space-y-3">
+                <input v-model="newBooking.themeDay" type="text" placeholder="主題日 (選填)" class="w-full p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500">
+                <div class="flex gap-2">
+                    <select v-model="newBooking.homeTeam" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain">
+                        <option v-for="t in cpblTeams" :key="t" :value="t">{{ t }} (主隊)</option>
+                    </select>
+                    <select v-model="newBooking.awayTeam" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain">
+                        <option v-for="t in cpblTeams" :key="t" :value="t">{{ t }} (客隊)</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <select v-model="newBooking.stadium" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain">
+                        <option v-for="s in cpblStadiums" :key="s" :value="s">{{ s }}</option>
+                    </select>
+                    <input v-model="newBooking.amount" type="text" placeholder="金額" class="w-1/2 p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500">
+                </div>
+                <input v-model="newBooking.seat" type="text" placeholder="座位" class="w-full p-2.5 bg-app-cardAlt border border-transparent rounded-lg text-sm font-bold outline-none text-app-textMain placeholder:text-gray-500">
+                <div class="bg-app-cardAlt p-3 rounded-lg border border-transparent">
+                    <label class="text-[10px] text-gray-500 font-bold block mb-2">上傳照片 (最多四張)</label>
+                    <div class="flex flex-wrap gap-2">
+                        <div v-for="(img, idx) in newBooking.baseballPhotos" :key="idx" class="relative w-16 h-16 border border-gray-200 rounded overflow-hidden">
+                            <img :src="img" class="w-full h-full object-cover">
+                            <button @click.stop="removeBaseballPhoto(idx)" class="absolute top-0 right-0 bg-white/80 text-red-500 w-5 h-5 flex items-center justify-center text-[10px] btn-press"><i class="fas fa-times"></i></button>
+                        </div>
+                        <label v-if="(newBooking.baseballPhotos || []).length < 4" class="w-16 h-16 border border-dashed border-gray-400 rounded flex items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-50 btn-press">
+                            <i class="fas fa-plus"></i>
+                            <input type="file" accept="image/*" multiple @change="handleBaseballPhotos" class="hidden">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="newBooking.type === 'car' || newBooking.type === 'other'">
+              <textarea v-model="newBooking.info" placeholder="備註..." class="w-full p-3 bg-app-cardAlt border border-transparent rounded-lg text-sm font-medium h-24 resize-none outline-none focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400"></textarea>
+            </div>
+            
+          </div>
+          <button @click="saveBooking" class="w-full bg-app-primaryDark text-white py-3.5 rounded-xl font-bold mt-4 btn-press text-sm shrink-0 tracking-widest shadow-md">儲存</button>
+        </div>
+      </div>
+    </transition>
     
     <transition name="slide-up">
       <div v-if="showExpenseModal" class="absolute inset-0 bg-app-textMain/40 backdrop-blur-sm z-[3000] flex items-end justify-center overflow-hidden">
@@ -1932,7 +2058,7 @@
 
         // ================= 2. Bookings =================
         const showBookingModal = ref(false); const editingBookingId = ref(null);
-        const newBooking = reactive({ type: 'flight', title: '', code: '', loc1: '', time1: '', loc2: '', time2: '', address: '', checkIn: '', latestCheckIn: '', checkOut: '', mapLink: '', amount: '', info: '', image: null, trainType: 'HSR', trainNo: '', seat: '' });
+        const newBooking = reactive({ type: 'flight', title: '', code: '', loc1: '', time1: '', loc2: '', time2: '', address: '', checkIn: '', latestCheckIn: '', checkOut: '', mapLink: '', amount: '', info: '', image: null, trainType: 'HSR', trainNo: '', seat: '', baseballPhotos: [], usedBy: null, themeDay: '', homeTeam: '中信兄弟', awayTeam: '統一獅', stadium: '大巨蛋' });
         
         const autoFillBooking = (e) => {
           if (!e.target.files.length) return; alert('正在辨識憑證...');
@@ -1940,10 +2066,27 @@
             if (newBooking.type === 'flight') { Object.assign(newBooking, { title: '星宇航空 JX800', code: 'A1B2C3', loc1: 'TPE', time1: '08:30', loc2: 'NRT', time2: '12:45' }); } 
             else if (newBooking.type === 'train') { Object.assign(newBooking, { trainType: 'HSR', trainNo: '0803', seat: '6車 14A', loc1: '台北', time1: '09:00', loc2: '左營', time2: '10:45' }); } 
             else if (newBooking.type === 'hotel') { Object.assign(newBooking, { title: '合拍行旅-民生館', address: '臺南市中西區民生路二段76號6樓', mapLink: 'https://maps.google.com/?q=臺南市中西區民生路二段76號6樓', checkIn: '22:00前', latestCheckIn: '22:00', checkOut: '11:00', amount: '' }); }
+            else if (newBooking.type === 'baseball') { Object.assign(newBooking, { title: '中職例行賽', themeDay: '女孩日', homeTeam: '中信兄弟', awayTeam: '富邦悍將', stadium: '大巨蛋', amount: '1280', seat: '114區 10排 5號' }); }
           }, 800);
         };
 
-        const openBookingModal = (bk) => { if(bk){ editingBookingId.value = bk.id; Object.assign(newBooking, { ...bk }); } else { editingBookingId.value = null; Object.assign(newBooking, { type: 'flight', title: '', code: '', loc1: '', time1: '', loc2: '', time2: '', address: '', checkIn: '', latestCheckIn: '', checkOut: '', mapLink: '', amount: '', info: '', image: null, trainType: 'HSR', trainNo: '', seat: '' }); } swipeState.id = null; showBookingModal.value = true; };
+        const handleBaseballPhotos = (e) => {
+            const files = Array.from(e.target.files);
+            if ((newBooking.baseballPhotos || []).length + files.length > 4) { alert('最多只能上傳4張照片！'); return; }
+            if (!newBooking.baseballPhotos) newBooking.baseballPhotos = [];
+            files.forEach(file => { compressImage(file, 800, 800, 0.5, (dataUrl) => { newBooking.baseballPhotos.push(dataUrl); }); });
+        };
+        const removeBaseballPhoto = (idx) => { newBooking.baseballPhotos.splice(idx, 1); };
+
+        const markAsUsed = (bk) => { 
+            if(confirm('確定要標記為已使用嗎？避免朋友重複使用。')) { 
+                bk.usedBy = myProfile.name; 
+                const idx = currentTrip.value.bookings.findIndex(b => b.id === bk.id); 
+                if (idx > -1) currentTrip.value.bookings[idx] = bk; 
+            } 
+        };
+
+        const openBookingModal = (bk) => { if(bk){ editingBookingId.value = bk.id; Object.assign(newBooking, { ...bk }); if(!newBooking.baseballPhotos) newBooking.baseballPhotos = []; } else { editingBookingId.value = null; Object.assign(newBooking, { type: 'flight', title: '', code: '', loc1: '', time1: '', loc2: '', time2: '', address: '', checkIn: '', latestCheckIn: '', checkOut: '', mapLink: '', amount: '', info: '', image: null, trainType: 'HSR', trainNo: '', seat: '', baseballPhotos: [], usedBy: null, themeDay: '', homeTeam: '中信兄弟', awayTeam: '統一獅', stadium: '大巨蛋' }); } swipeState.id = null; showBookingModal.value = true; };
         const editBooking = openBookingModal;
         const deleteBooking = (id) => { if(confirm('確定刪除此憑證？')) currentTrip.value.bookings = currentTrip.value.bookings.filter(b => b.id !== id); swipeState.id = null; };
         const saveBooking = () => { if (!newBooking.title) return alert('請輸入標題'); const bkData = { ...newBooking, id: editingBookingId.value || 'b_'+Date.now() }; if (editingBookingId.value) { const idx = currentTrip.value.bookings.findIndex(b => b.id === editingBookingId.value); currentTrip.value.bookings[idx] = bkData; } else currentTrip.value.bookings.push(bkData); showBookingModal.value = false; };
@@ -2192,6 +2335,7 @@
           swipeState, onTouchStart, onTouchMove, onTouchEnd, onGlobalTouchStart, onGlobalTouchEnd, syncToGoogleMaps, toggleMapRoute, handleFabClick, showFabMenu, showHomeFabMenu, openJoinModal, processJoinCode, showJoinModal, joinCode,
           cpblTeams, cpblStadiums, getCategoryColor, displayTimeline, toggleFavorite, openNavigation, detailSchedule, openScheduleDetail, deleteSchedule, showScheduleModal, editingScheduleId, newSchedule, openScheduleModal, editSchedule, saveSchedule,
           showBookingModal, editingBookingId, newBooking, openBookingModal, editBooking, saveBooking, deleteBooking, autoFillBooking, requirePin,
+          handleBaseballPhotos, removeBaseballPhoto, markAsUsed,
           rates, totalExpenseTWD, settlements, shareBill, detailExpense, openExpenseDetail, deleteExpense, showExpenseModal, editingExpenseId, newExpense, openExpenseModal, editExpense, saveExpense, getExpenseTotal, getPayersList, getExpenseIcon, isFetchingRates, convertedExpenseTWD, fetchRates, getExpRate,
           newJournal, addJournal, handleJournalImage, activePlanType, filteredPlans, editPlan, deletePlan, isTaskFullyDone, toggleTaskCheck, packingGroups, activePackingTab, availablePackingTabs, clearPackingList, getItemName, getGroupName, addWishlistToSchedule, getValidLink,
           showPaymentModal, editingPaymentId, newPayment, openPaymentModal, editPayment, savePayment, deletePayment, viewQrCode, showMembersModal, editMemberRole,
