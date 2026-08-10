@@ -417,7 +417,7 @@
                           </div>
                           <div class="flex items-center mt-1.5 gap-1.5">
                              <div class="flex -space-x-1"><img v-for="pid in getPayersList(exp)" :key="pid" :src="getMember(currentTrip, pid).avatar" class="w-3.5 h-3.5 rounded-full border border-white object-cover p-0.5"></div>
-                             <span class="text-[9px] text-gray-500 font-serif ml-1 px-1.5 bg-app-cardAlt border border-gray-200 rounded">{{ exp.splitMode === 'all' || (exp.consumers || []).length === (currentTrip.members || []).length ? '全體分攤' : ((exp.consumers || []).length > 1 ? '部分分攤' : '不分攤') }}</span>
+                             <span class="text-[9px] text-gray-500 font-serif ml-1 px-1.5 bg-app-cardAlt border border-gray-200 rounded">{{ exp.splitMode === 'all' || (exp.consumers || []).length === (currentTrip.members || []).length ? '全體分攤' : ((exp.consumers || []).length > 1 || exp.splitMode === 'custom' ? (exp.splitMode === 'custom' ? '自訂分攤' : '部分分攤') : '不分攤') }}</span>
                           </div>
                         </div>
                       </div>
@@ -1090,7 +1090,61 @@
                <div class="w-px h-6 bg-gray-300"></div>
                <input v-model="newExpense.desc" type="text" placeholder="輸入相關資訊 (例如: 拉麵)" class="flex-1 bg-transparent text-sm font-bold outline-none text-app-textMain placeholder:text-gray-400 py-2 pr-2">
             </div>
-            <div><label class="text-[10px] text-gray-500 font-bold mb-1 block tracking-wider uppercase">誰付的錢？ (Payer)</label><div class="flex bg-app-cardAlt p-1 rounded-lg border border-transparent mb-2"><button @click="newExpense.payerMode = 'single'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.payerMode === 'single' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">單人支付</button><button @click="newExpense.payerMode = 'multi'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.payerMode === 'multi' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">多人合資</button></div><div v-if="newExpense.payerMode === 'single'" class="flex gap-2 items-center"><select v-model="newExpense.singlePayerId" class="p-2.5 bg-transparent border-b border-gray-300 w-1/3 font-bold text-sm outline-none text-app-textMain"><option class="bg-white" v-for="m in (currentTrip?.members || [])" :key="m.id" :value="m.id">{{ m.name }}</option></select><div class="flex-1 flex items-center border-b border-gray-300"><input v-model.number="newExpense.singleAmount" type="number" placeholder="輸入金額" class="w-full p-2.5 bg-transparent font-serif font-black text-xl outline-none text-app-textMain text-right placeholder:text-gray-400"></div></div><div v-if="newExpense.payerMode === 'multi'" class="space-y-2"><div v-for="m in (currentTrip?.members || [])" :key="m.id" class="flex items-center justify-between card-dashed pb-1 border-gray-200"><div class="flex items-center gap-2"><img :src="m.avatar" class="w-5 h-5 rounded-full object-cover border border-gray-200 bg-app-cardAlt"><span class="text-xs font-bold text-app-textMain">{{ m.name }}</span></div><div class="flex items-center"><input v-model.number="newExpense.multiPayersAmount[m.id]" type="number" placeholder="0" class="w-20 bg-transparent text-right font-serif font-bold text-sm outline-none border-b border-transparent focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400"></div></div></div></div><div><label class="text-[10px] text-gray-500 font-bold mb-1 block tracking-wider uppercase mt-4">分攤方式 (Split)</label><div class="flex bg-app-cardAlt p-1 rounded-lg border border-transparent mb-2"><button @click="newExpense.splitMode = 'all'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'all' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">全部分攤</button><button @click="newExpense.splitMode = 'partial'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'partial' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">部分分攤</button><button @click="newExpense.splitMode = 'none'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'none' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">不分攤</button></div><div v-if="newExpense.splitMode === 'partial'" class="flex flex-wrap gap-2 mt-2 p-3 bg-app-cardAlt rounded-xl border border-transparent"><label v-for="m in (currentTrip?.members || [])" :key="m.id" class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200 cursor-pointer shadow-sm active:scale-95 transition"><input type="checkbox" :value="m.id" v-model="newExpense.partialConsumers" class="accent-app-primaryDark w-3.5 h-3.5"><span class="text-xs font-bold text-app-textMain">{{ m.name }}</span></label></div><div v-if="newExpense.splitMode === 'none'" class="text-[10px] text-gray-500 mt-1 ml-1 font-bold"><i class="fas fa-info-circle mr-1 text-app-primaryDark"></i> 此筆花費將完全由付款人自行吸收，不向他人請款。</div></div>
+            <div>
+              <label class="text-[10px] text-gray-500 font-bold mb-1 block tracking-wider uppercase">誰付的錢？ (Payer)</label>
+              <div class="flex bg-app-cardAlt p-1 rounded-lg border border-transparent mb-2">
+                <button @click="newExpense.payerMode = 'single'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.payerMode === 'single' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">單人支付</button>
+                <button @click="newExpense.payerMode = 'multi'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.payerMode === 'multi' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">多人合資</button>
+              </div>
+              <div v-if="newExpense.payerMode === 'single'" class="flex gap-2 items-center">
+                <select v-model="newExpense.singlePayerId" class="p-2.5 bg-transparent border-b border-gray-300 w-1/3 font-bold text-sm outline-none text-app-textMain">
+                  <option class="bg-white" v-for="m in (currentTrip?.members || [])" :key="m.id" :value="m.id">{{ m.name }}</option>
+                </select>
+                <div class="flex-1 flex items-center border-b border-gray-300">
+                  <input v-model.number="newExpense.singleAmount" type="number" placeholder="輸入金額" class="w-full p-2.5 bg-transparent font-serif font-black text-xl outline-none text-app-textMain text-right placeholder:text-gray-400">
+                </div>
+              </div>
+              <div v-if="newExpense.payerMode === 'multi'" class="space-y-2">
+                <div v-for="m in (currentTrip?.members || [])" :key="m.id" class="flex items-center justify-between card-dashed pb-1 border-gray-200">
+                  <div class="flex items-center gap-2">
+                    <img :src="m.avatar" class="w-5 h-5 rounded-full object-cover border border-gray-200 bg-app-cardAlt">
+                    <span class="text-xs font-bold text-app-textMain">{{ m.name }}</span>
+                  </div>
+                  <div class="flex items-center">
+                    <input v-model.number="newExpense.multiPayersAmount[m.id]" type="number" placeholder="0" class="w-20 bg-transparent text-right font-serif font-bold text-sm outline-none border-b border-transparent focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-[10px] text-gray-500 font-bold mb-1 block tracking-wider uppercase mt-4">分攤方式 (Split)</label>
+              <div class="flex bg-app-cardAlt p-1 rounded-lg border border-transparent mb-2">
+                <button @click="newExpense.splitMode = 'all'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'all' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">全部分攤</button>
+                <button @click="newExpense.splitMode = 'partial'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'partial' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">部分分攤</button>
+                <button @click="newExpense.splitMode = 'custom'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'custom' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">自訂分攤</button>
+                <button @click="newExpense.splitMode = 'none'" :class="['flex-1 py-1.5 rounded-md text-xs font-bold transition-all', newExpense.splitMode === 'none' ? 'bg-app-primaryDark text-white shadow-sm' : 'text-gray-500']">不分攤</button>
+              </div>
+              <div v-if="newExpense.splitMode === 'partial'" class="flex flex-wrap gap-2 mt-2 p-3 bg-app-cardAlt rounded-xl border border-transparent">
+                <label v-for="m in (currentTrip?.members || [])" :key="m.id" class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200 cursor-pointer shadow-sm active:scale-95 transition">
+                  <input type="checkbox" :value="m.id" v-model="newExpense.partialConsumers" class="accent-app-primaryDark w-3.5 h-3.5">
+                  <span class="text-xs font-bold text-app-textMain">{{ m.name }}</span>
+                </label>
+              </div>
+              <div v-if="newExpense.splitMode === 'custom'" class="space-y-2 mt-2 p-3 bg-app-cardAlt rounded-xl border border-transparent">
+                  <label class="text-[10px] text-app-primaryDark font-bold block mb-1">請輸入每個人應分攤的具體金額：</label>
+                  <div v-for="m in (currentTrip?.members || [])" :key="m.id" class="flex items-center justify-between card-dashed pb-1 border-gray-200">
+                      <div class="flex items-center gap-2">
+                          <img :src="m.avatar" class="w-5 h-5 rounded-full object-cover border border-gray-200 bg-white p-0.5">
+                          <span class="text-xs font-bold text-app-textMain">{{ m.name }}</span>
+                      </div>
+                      <div class="flex items-center">
+                          <input v-model.number="newExpense.customConsumersAmount[m.id]" type="number" placeholder="0" class="w-20 bg-transparent text-right font-serif font-bold text-sm outline-none border-b border-transparent focus:border-app-primaryDark text-app-textMain placeholder:text-gray-400">
+                      </div>
+                  </div>
+              </div>
+              <div v-if="newExpense.splitMode === 'none'" class="text-[10px] text-gray-500 mt-1 ml-1 font-bold"><i class="fas fa-info-circle mr-1 text-app-primaryDark"></i> 此筆花費將完全由付款人自行吸收，不向他人請款。</div>
+            </div>
             
             <div class="flex gap-3 mt-4">
               <div class="w-1/2">
@@ -1211,7 +1265,10 @@
                     <img :src="getMember(currentTrip, cid).avatar" class="w-6 h-6 rounded-full border border-gray-200 bg-white object-cover p-0.5">
                     <span class="text-xs font-bold text-gray-700">{{ getMember(currentTrip, cid).name }}</span>
                   </div>
-                  <span class="text-sm font-serif font-bold text-app-textMain">{{ detailExpense.currency }} {{ (getExpenseTotal(detailExpense) / (detailExpense.splitMode === 'all' ? currentTrip.members.length : detailExpense.consumers.length || 1)).toLocaleString(undefined, {maximumFractionDigits: 1}) }}</span>
+                  <span class="text-sm font-serif font-bold text-app-textMain">
+                      {{ detailExpense.currency }} 
+                      {{ detailExpense.splitMode === 'custom' && detailExpense.consumerAmounts ? detailExpense.consumerAmounts[cid].toLocaleString(undefined, {maximumFractionDigits: 1}) : (getExpenseTotal(detailExpense) / (detailExpense.splitMode === 'all' ? currentTrip.members.length : detailExpense.consumers.length || 1)).toLocaleString(undefined, {maximumFractionDigits: 1}) }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -2109,19 +2166,26 @@
             const rate = getExpRate(e);
             const totalTWD = getExpenseTotal(e) * rate; 
             
-            let actualConsumers = e.splitMode === 'all' ? (currentTrip.value.members || []).map(m=>String(m.id)) : (e.consumers || []).map(String);
-            const perPersonTWD = totalTWD / (actualConsumers.length || 1); 
-            
             for (let pid in e.payers) { 
                 let strPid = String(pid);
                 if(!bal.has(strPid)) bal.set(strPid, 0); 
                 bal.set(strPid, bal.get(strPid) + (e.payers[pid] * rate)); 
             }
-            actualConsumers.forEach(cid => { 
-                let strCid = String(cid);
-                if(!bal.has(strCid)) bal.set(strCid, 0); 
-                bal.set(strCid, bal.get(strCid) - perPersonTWD); 
-            }); 
+            if (e.splitMode === 'custom' && e.consumerAmounts) {
+                for (let cid in e.consumerAmounts) {
+                    let strCid = String(cid);
+                    if(!bal.has(strCid)) bal.set(strCid, 0);
+                    bal.set(strCid, bal.get(strCid) - (e.consumerAmounts[cid] * rate));
+                }
+            } else {
+                let actualConsumers = e.splitMode === 'all' ? (currentTrip.value.members || []).map(m=>String(m.id)) : (e.consumers || []).map(String);
+                const perPersonTWD = totalTWD / (actualConsumers.length || 1); 
+                actualConsumers.forEach(cid => { 
+                    let strCid = String(cid);
+                    if(!bal.has(strCid)) bal.set(strCid, 0); 
+                    bal.set(strCid, bal.get(strCid) - perPersonTWD); 
+                }); 
+            }
           });
           
           let debtors = [], creditors = []; 
@@ -2152,7 +2216,7 @@
         const deleteExpense = (id) => { if(confirm('確定刪除此筆支出？')) currentTrip.value.expenses = currentTrip.value.expenses.filter(e => e.id !== id); swipeState.id = null; };
         
         const showExpenseModal = ref(false); const editingExpenseId = ref(null);
-        const newExpense = reactive({ desc: '', currency: 'TWD', category: '早餐', paymentMethod: 'cash', payerMode: 'single', singlePayerId: 1, singleAmount: null, multiPayersAmount: {}, splitMode: 'all', partialConsumers: [], note: '', receiptUrl: null, isCustomRate: false, customRate: null });
+        const newExpense = reactive({ desc: '', currency: 'TWD', category: '早餐', paymentMethod: 'cash', payerMode: 'single', singlePayerId: 1, singleAmount: null, multiPayersAmount: {}, splitMode: 'all', partialConsumers: [], customConsumersAmount: {}, note: '', receiptUrl: null, isCustomRate: false, customRate: null });
         
         const convertedExpenseTWD = computed(() => {
           let total = 0;
@@ -2209,7 +2273,7 @@
                 desc: exp.desc, currency: exp.currency, category: exp.category || '其他', paymentMethod: exp.paymentMethod, payerMode: isSinglePayer ? 'single' : 'multi', 
                 note: exp.note || '', receiptUrl: exp.receiptUrl || null,
                 isCustomRate: exp.isCustomRate || false, customRate: exp.exchangeRate || null,
-                splitMode: splitModeCalculated, partialConsumers: [...(exp.consumers || [])]
+                splitMode: exp.splitMode === 'custom' ? 'custom' : splitModeCalculated, partialConsumers: [...(exp.consumers || [])], customConsumersAmount: exp.consumerAmounts ? {...exp.consumerAmounts} : {}
             }); 
             
             if (isSinglePayer) { newExpense.singlePayerId = payerIds[0]; newExpense.singleAmount = exp.payers[newExpense.singlePayerId]; } 
@@ -2217,8 +2281,11 @@
           }
           else { 
             editingExpenseId.value = null; 
-            Object.assign(newExpense, { desc: '', currency: currentTrip.value?.defaultCurrency || 'JPY', category: '早餐', paymentMethod: 'cash', payerMode: 'single', singlePayerId: myProfile.id, singleAmount: null, multiPayersAmount: {}, splitMode: 'all', partialConsumers: (currentTrip.value.members || []).map(m=>m.id), note: '', receiptUrl: null, isCustomRate: false, customRate: null }); 
-            (currentTrip.value.members || []).forEach(m => newExpense.multiPayersAmount[m.id] = null); 
+            Object.assign(newExpense, { desc: '', currency: currentTrip.value?.defaultCurrency || 'JPY', category: '早餐', paymentMethod: 'cash', payerMode: 'single', singlePayerId: myProfile.id, singleAmount: null, multiPayersAmount: {}, splitMode: 'all', partialConsumers: (currentTrip.value.members || []).map(m=>m.id), customConsumersAmount: {}, note: '', receiptUrl: null, isCustomRate: false, customRate: null }); 
+            (currentTrip.value.members || []).forEach(m => {
+                newExpense.multiPayersAmount[m.id] = null;
+                newExpense.customConsumersAmount[m.id] = null;
+            }); 
           }
           swipeState.id = null; showExpenseModal.value = true; 
         };
@@ -2238,9 +2305,23 @@
           }
           
           let finalConsumers = [];
+          let finalConsumerAmounts = null;
           if (newExpense.splitMode === 'all') { finalConsumers = (currentTrip.value.members || []).map(m => m.id); } 
           else if (newExpense.splitMode === 'partial') { if (newExpense.partialConsumers.length === 0) return alert('請至少勾選一位分攤成員'); finalConsumers = [...newExpense.partialConsumers]; } 
           else if (newExpense.splitMode === 'none') { finalConsumers = Object.keys(finalPayers); }
+          else if (newExpense.splitMode === 'custom') {
+              let customTotal = 0;
+              finalConsumerAmounts = {};
+              for (let id in newExpense.customConsumersAmount) {
+                  let amt = Number(newExpense.customConsumersAmount[id]) || 0;
+                  if (amt > 0) {
+                      finalConsumerAmounts[id] = amt;
+                      finalConsumers.push(Number(id));
+                      customTotal += amt;
+                  }
+              }
+              if (customTotal !== totalAmount) return alert(`自訂分攤的總和 (${customTotal}) 必須等於付款總金額 (${totalAmount})，請確認數字是否正確！`);
+          }
 
           const expData = { 
               id: editingExpenseId.value || 'e_'+Date.now(), 
@@ -2251,6 +2332,7 @@
               payers: finalPayers, 
               consumers: finalConsumers, 
               splitMode: newExpense.splitMode, 
+              consumerAmounts: finalConsumerAmounts,
               isCustomRate: newExpense.isCustomRate,
               exchangeRate: newExpense.isCustomRate ? Number(newExpense.customRate) : null,
               note: newExpense.note, 
